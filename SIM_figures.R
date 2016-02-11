@@ -89,7 +89,7 @@ transp <- 0.2
 cxp <- 0.5
 
 
-pdf(paste(FIGDIR,"FIG_SIM_modelestimation.pdf",sep=""),width=8,height=5)
+pdf(paste(FIGDIR,"FIG_SIM_modelestimation_ss10.pdf",sep=""),width=8,height=5)
 
 par(mar=c(4,4,1.5,1),oma=c(0,0,0,0))
 layout(matrix(c(1,2,3,3),2,2,byrow=TRUE),widths=c(0.5,0.5),heights=c(0.7,0.3))
@@ -185,7 +185,7 @@ plots[[method]] <- list(t1t2,t3)
 }
 
 
-pdf(paste(FIGDIR,"FIG_SIM_power.pdf",sep=""),width=15,height=17)
+pdf(paste(FIGDIR,"FIG_SIM_power_ss10.pdf",sep=""),width=15,height=17)
 grid.arrange(plots[[1]][[1]],plots[[1]][[2]],
              plots[[2]][[1]],plots[[2]][[2]],
              plots[[3]][[1]],plots[[3]][[2]],             

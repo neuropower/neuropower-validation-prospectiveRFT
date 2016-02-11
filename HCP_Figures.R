@@ -9,8 +9,8 @@ library(gplots)
 library(gridExtra)
 
 
-RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_peak_HCP/"
-HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation/"
+RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_peak_HCP_15/"
+HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/"
 FIGDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Paper/Studie_4_v1.4/Figures/"
 
 
@@ -78,7 +78,6 @@ for (p in range){
   file <- paste(RESDIR,"estimation_hcp_",p,".csv",sep="")
   res <- read.csv(file,header=FALSE,na.strings=c("nan"))
   names(res) <- c("c","pi1e","pi1t","pi1c","effe","efft","effc","effec","sde","sdt")
-  if(p<51){res[47,] <- NA}
   estimation[p,,] <- data.matrix(res[,c(2,4,7,8,9,10)])
 }
 
@@ -87,13 +86,12 @@ powtru <- array(NA,dim=c(sims,47,50,4))
 powpre <- array(NA,dim=c(sims,47,50,4))
 for (p in range){
   print(p)
-  for(c in 1:46){
+  for(c in 1:47){
     prefile <- paste(RESDIR,"powpre_hcp_",p,"_contrast_",c-1,".csv",sep="")
     if(file.exists(prefile)){
     pre <- read.csv(prefile,na.strings=c("nan"),header=TRUE)
     if(dim(pre)[2]==3){pre$BH=NA}
     pre <- data.frame(pre$UN,pre$BF,pre$RFT,pre$BH)
-    if(p<51){pre[47,] <- NA}
     powpre[p,c,,] <- data.matrix(pre)
     }
     
@@ -102,7 +100,6 @@ for (p in range){
       tru <- read.csv(trufile,na.strings=c("nan"),header=TRUE)
       if(dim(tru)[2]==3){tru$BH=NA}
       tru <- data.frame(tru$UN,tru$BF,tru$RFT,tru$BH)
-      if(p<51){tru[47,] <- NA}
       powtru[p,c,,] <- as.numeric(as.matrix(tru))   
     }
   }
@@ -173,13 +170,14 @@ dev.off()
 
 ################################################
 
+effectorder <- order(estimation.av[,4])
+  
 powpred3D <- apply(powpre,c(2,3,4),mean,na.rm=TRUE)
 powtrue3D <- apply(powtru,c(2,3,4),mean,na.rm=TRUE)
 
-#order <- order(estimation.av[,3])
-#powpred3D <- powpred3D[order,,]
-#powtrue3D <- powtrue3D[order,,]
-
+powpred3D <- powpred3D[effectorder,,]
+powtrue3D <- powtrue3D[effectorder,,]
+confull <- confull[effectorder]
 
 methname <- c("Uncorrected","Bonferroni","Random Field Theory","False Discovery Rate")
 
@@ -195,9 +193,9 @@ at.bias <- seq(-1, 1, length.out=length(col.bias)-1)
 ckey.bias <- list(at=at.bias, col=col.bias)
 
 level.scales1 <- list(y=list(labels=confull,at=1:47,cex=0.5),
-					 x=list(labels=seq(10,50,10),at=seq(1,40,10)))
-level.scales2 <- list(y=list(labels=rep("",47),at=1:16,cex=0.5),
-					 x=list(labels=seq(10,50,10),at=seq(1,40,10)))
+					 x=list(labels=seq(15,65,10),at=seq(1,50,10)))
+level.scales2 <- list(y=list(labels=rep("",47),at=1:47,cex=0.5),
+					 x=list(labels=seq(15,65,10),at=seq(1,50,10)))
 
 plots <- list(0)
 for (method in 1:4){
