@@ -9,7 +9,7 @@ library(gplots)
 library(gridExtra)
 
 
-RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_peak_HCP_15/"
+RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_peak_HCP/power_peak_HCP_15/"
 HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/"
 FIGDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Paper/Studie_4_v1.4/Figures/"
 
@@ -119,7 +119,7 @@ cxav <- 1
 cxtx <- 0.5
 estimation.av <- apply(estimation,c(2,3),mean,na.rm=TRUE)
 
-pdf(paste(FIGDIR,"FIG_HCP_modelestimation.pdf",sep=""),width=8,height=5)
+pdf(paste(FIGDIR,"FIG_HCP_modelestimation_ss10.pdf",sep=""),width=8,height=5)
 
 par(mar=c(4,4,3,1),oma=c(0,0,0,0))
 layout(matrix(c(1,2,3,3),2,2,byrow=TRUE),widths=c(0.5,0.5),heights=c(0.8,0.2))

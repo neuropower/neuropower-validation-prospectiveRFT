@@ -11,8 +11,6 @@ scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/power_peak_HCP.tar.gz ~
 srun -p russpold --time=10:00:00 --x11 -n1 --pty bash
 srun --time=4:00:00 --x11 --pty bash
 
-sdev --h!! See if its possible to get sdev longer...
-
 i=1
 export i
 sbatch HCP.sbatch
