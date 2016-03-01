@@ -56,8 +56,8 @@ for c in range(47):
     np.random.seed(seed=seed)
     suborder = np.random.choice(all_subs,len(all_subs),replace=False)
     pilot_subs = np.sort(suborder[0:pilot_sub])
-    final_subs = np.sort(suborder[pilot_sub:(final_sub+pilot_sub)])
-    true_subs = np.sort(suborder[(pilot_sub+final_sub):all_sub])
+    final_subs = np.sort(suborder[0:final_sub])
+    true_subs = np.sort(suborder[(final_sub:all_sub])
 
     ################################
     # select and analyze true data #
