@@ -51,7 +51,7 @@ for c in range(16):
     es_names = np.repeat(["half","one","onehalf","two"],4)
     wd_names = [2,4,6,8]*4
     #parameters
-    exc = 2.3
+    exc = 3
     smooth_FWHM = 3
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
@@ -132,10 +132,7 @@ for c in range(16):
     shutil.rmtree(TEMPDIR)
 
     if bum['pi1'] == 0:
-        SS = 'nan'
-        TPR = 'nan'
-        FPR = 'nan'
-        estimation = [effectsize, str(wd_names[c]), bum['pi1'],true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,bum['a'],SS,TPR,FPR]
+        estimation = [effectsize, str(wd_names[c]), bum['pi1'],true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,bum['a'],'nan','nan','nan','nan','nan','nan']
         fd = open(resfile,"a")
         wr = csv.writer(fd,quoting=csv.QUOTE_NONE)
         wr.writerow(estimation)
@@ -154,7 +151,7 @@ for c in range(16):
 
     pred_power = pd.DataFrame(power_predicted)
     pred_power['newsub'] = range(pilot_sub,final_sub)
-    minind = int(np.min([i for i,elem in enumerate(pred_power['RFT']>pow,1) if elem]))
+    minind = int(np.min([i for i,elem in enumerate(pred_power['UN']>pow,1) if elem]))
     SS = pred_power['newsub'][minind]-1
 
     ##################
@@ -174,7 +171,9 @@ for c in range(16):
     fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
     os.popen(fslcmd).read()
 
-    SPM_t = nib.load("stats/tstat1.nii.gz").get_data()
+    # Without correction
+
+    SPM_c = nib.load("stats/tstat1.nii.gz").get_data()
     p_values = t.cdf(-SPM_t, df = SS-1)
     SPM_z = -norm.ppf(p_values)
     SPM = SPM_z[::-1,:,:]
@@ -193,18 +192,64 @@ for c in range(16):
     truth = [0 if x == 0 else 1 for x in truth]
     peaks['active'] = truth
     thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
-    if np.sum(peaks.peak>thresholds['RFT']) == 0:
-        TPR = 0
-        FPR = 0
+    if np.sum(peaks.peak>thresholds['UN']) == 0:
+        TPR_u = 0
+        FPR_u = 0
     else:
-        pos = peaks.peak>thresholds['RFT']
+        pos = peaks.peak>thresholds['UN']
         true = peaks.active==1
         TP = [a and b for a,b in zip(pos,true)]
         FP = [a and not b for a,b in zip(pos,true)]
-        TPR = float(np.sum(TP))/float(np.sum(true))
-        FPR = float(np.sum(FP))/float(len(peaks)-np.sum(true))
+        TPR_u = float(np.sum(TP))/float(np.sum(true))
+        FPR_u = float(np.sum(FP))/float(len(peaks)-np.sum(true))
 
-    estimation = [effectsize, str(wd_names[c]), bum['pi1'],true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,bum['a'],SS,TPR,FPR]
+    # with correction
+
+    SPM_B = nib.load("stats/cope1.nii.gz").get_data()
+    SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
+    SPM_VAR = SPM_SE*SS
+    v = (thresholds["UN"]-scipy.stats.norm.ppf(0.2))**2/est_eff**2
+    SPM_VAR_BC = SPM_VAR +(pilot_sub-1)/(pilot_sub-2)*1/v
+    SPM_SE_BC = SPM_VAR_BC/SS
+    SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+    p_values = t.cdf(-SPM_t, df = SS-1)
+    SPM_z = -norm.ppf(p_values)
+    SPM = SPM_z[::-1,:,:]
+    peaks = cluster.cluster(SPM,exc)
+    pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
+    pvalues = [max(10**(-6),k) for k in pvalues]
+    peaks['pval'] = pvalues
+
+    # compute true power for different procedures
+
+    truth = []
+    for i in range(len(peaks)):
+        peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
+        truth.append(peak_act)
+
+    if np.sum(len(peaks)) == 0:
+        TPR_c = 'nan'
+        FPR_c = 0
+    else:
+        truth = [0 if x == 0 else 1 for x in truth]
+        peaks['active'] = truth
+        thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
+        if np.sum(peaks.peak>thresholds['UN']) == 0:
+            TPR_c = 0
+            FPR_c = 0
+        else:
+            pos = peaks.peak>thresholds['UN']
+            true = peaks.active==1
+            notrue = np.sum(true)
+            nofalse = len(peaks)-np.sum(true)
+            TP = [a and b for a,b in zip(pos,true)]
+            FP = [a and not b for a,b in zip(pos,true)]
+            TPR_c = float(np.sum(TP))/notrue if notrue>0 else 'nan'
+            FPR_c = float(np.sum(FP))/nofalse if nofalse>0 else 0
+
+    discr = scipy.stats.norm.cdf(exc,est_eff,est_sd)
+
+    estimation = [effectsize, str(wd_names[c]), bum['pi1'],true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,bum['a'],SS,TPR_u,FPR_u,TPR_c,FPR_c,discr]
     fd = open(resfile,"a")
     wr = csv.writer(fd,quoting=csv.QUOTE_NONE)
     wr.writerow(estimation)

@@ -8,15 +8,15 @@
 #SBATCH --partition=russpold
 #SBATCH --qos=russpold
 
-#TMPDIR="/local-scratch/jdurnez/7733199/"
-DATADIR10="/scratch/users/jdurnez/interim_SIM_biascorr_10/"
+#TMPDIR="/local-scratch/jdurnez/7743745/"
 DATADIR15="/scratch/users/jdurnez/interim_SIM_biascorr_15/"
+DATADIR20="/scratch/users/jdurnez/interim_SIM_biascorr_20/"
 HOMEDIR="/home/jdurnez/power_peak/"
 TMPDIR=$LOCAL_SCRATCH
 
 for j in $(seq 1 50);
 do
-  SIM=$(((i-1)*10+j))
-  python $HOMEDIR/SIM_interim_biascorr.py 10 100 $SIM "0.8" $HOMEDIR $DATADIR10 $TMPDIR
+  SIM=$(((i-1)*50+j))
   python $HOMEDIR/SIM_interim_biascorr.py 15 100 $SIM "0.8" $HOMEDIR $DATADIR15 $TMPDIR
+  python $HOMEDIR/SIM_interim_biascorr.py 20 100 $SIM "0.8" $HOMEDIR $DATADIR20 $TMPDIR
 done

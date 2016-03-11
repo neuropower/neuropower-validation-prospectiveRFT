@@ -5,7 +5,7 @@ scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Functions/* jdurnez@s
 
 # from sherlock to home
 
-scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/power_peak_SIM.tar.gz ~/Downloads/
+scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/interim_biascorr.tar.gz ~/Downloads/
 scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/power_peak_HCP.tar.gz ~/Downloads/
 
 srun -p russpold --qos=russpold --time=10:00:00 --x11 -n1 --pty bash
@@ -22,7 +22,7 @@ do
   sbatch HCP_interim.sbatch
 done
 
-for i in {1..100}
+for i in {1..40}
 do
   export i
   sbatch SIM_interim_biascorr.sbatch
