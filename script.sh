@@ -16,10 +16,10 @@ export i
 sbatch HCP_interim.sbatch
 sbatch SIM_interim.sbatch
 
-for i in {134..167}
+for i in {1..100}
 do
   export i
-  sbatch HCP_interim.sbatch
+  sbatch SIM_interim.sbatch
 done
 
 for i in {1..40}
