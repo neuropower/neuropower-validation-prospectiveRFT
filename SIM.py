@@ -157,7 +157,7 @@ for c in range(16):
         os.chdir(TEMPDIR)
         new_subj=s
 
-        signal = nib.load(os.path.join(HOMEDIR,"activation"+str(width)+".nii")).get_data()
+        signal = nib.load(os.path.join(HOMEDIR,"SIM_activation"+str(width)+".nii")).get_data()
         signal = np.repeat(signal[:, :, :, np.newaxis], new_subj, axis=3)
         low_values_indices = signal < 0.1
         signal[low_values_indices] = 0
@@ -194,18 +194,30 @@ for c in range(16):
         truth = [0 if x == 0 else 1 for x in truth]
         peaks['active'] = truth
         thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
-        TPR = {'UN':'nan','BF':'nan','RFT':'nan','BH':'nan'}
+        res = {
+            'UN_TP':'nan','BF_TP':'nan','RFT_TP':'nan','BH_TP':'nan',
+            'UN_FP':'nan','BF_FP':'nan','RFT_FP':'nan','BH_FP':'nan',
+            'UN_FN':'nan','BF_FN':'nan','RFT_FN':'nan','BH_FN':'nan',
+            'UN_TN':'nan','BF_TN':'nan','RFT_TN':'nan','BH_TN':'nan'
+            }
         for method in range(4):
             ind = ["UN","BF","RFT","BH"][method]
             if thresholds[ind] == 'nan':
                 continue
-            if np.sum(peaks.peak>thresholds[ind]) == 0:
-                continue
-            pos = peaks.peak>thresholds[ind]
-            true = peaks.active==1
-            TP = [a and b for a,b in zip(pos,true)]
-            TPR[ind] = float(np.sum(TP))/float(np.sum(true))
-        power_true.append(TPR)
+            if np.sum(peaks.peak>exc) == 0:
+                TP = FP = TN = FN = 0
+            else:
+                pos = peaks.peak>thresholds[ind]
+                true = peaks.active==1
+                TP = np.sum([a and b for a,b in zip(pos,true)])
+                FP = np.sum([a and not b for a,b in zip(pos,true)])
+                FN = np.sum([b and not a for a,b in zip(pos,true)])
+                TN = np.sum([not a and not b for a,b in zip(pos,true)])
+            res[str(ind+"_TP")] = TP
+            res[str(ind+"_FP")] = FP
+            res[str(ind+"_TN")] = TN
+            res[str(ind+"_FN")] = FN
+        power_true.append(res)
         shutil.rmtree(TEMPDIR)
 
     # write away data

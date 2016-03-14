@@ -1,4 +1,4 @@
-setwd("~/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/interim_biascorr/")
+setwd("~/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/interim_SIM_biascorr_15/")
 sims <- 
 results <- array(NA,dim=c(2000,16,16))
 for(i in 1:1040){
