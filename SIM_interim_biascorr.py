@@ -151,6 +151,7 @@ for c in range(16):
 
     pred_power = pd.DataFrame(power_predicted)
     pred_power['newsub'] = range(pilot_sub,final_sub)
+    #if all(pred_power['UN']<0.8)
     minind = int(np.min([i for i,elem in enumerate(pred_power['UN']>pow,1) if elem]))
     SS_UN = pred_power['newsub'][minind]-1
     minind = int(np.min([i for i,elem in enumerate(pred_power['BF']>pow,1) if elem]))
