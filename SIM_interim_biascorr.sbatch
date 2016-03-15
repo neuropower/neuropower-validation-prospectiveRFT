@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=SIM_interim
+#SBATCH --job-name=biascorrection
 #SBATCH --output=out/out.SIM
 #SBATCH --error=error/err.SIM
 #SBATCH --time=20:00:00
@@ -9,14 +9,12 @@
 #SBATCH --qos=russpold
 
 #TMPDIR="/local-scratch/jdurnez/7743745/"
-DATADIR15="/scratch/users/jdurnez/interim_SIM_biascorr_15/"
-DATADIR20="/scratch/users/jdurnez/interim_SIM_biascorr_20/"
+DATADIR="/scratch/users/jdurnez/interim/bias/"
 HOMEDIR="/home/jdurnez/power_peak/"
 TMPDIR=$LOCAL_SCRATCH
 
 for j in $(seq 1 50);
 do
   SIM=$(((i-1)*50+j))
-  python $HOMEDIR/SIM_interim_biascorr.py 15 100 $SIM "0.8" $HOMEDIR $DATADIR15 $TMPDIR
-  python $HOMEDIR/SIM_interim_biascorr.py 20 100 $SIM "0.8" $HOMEDIR $DATADIR20 $TMPDIR
+  python $HOMEDIR/SIM_interim_biascorr.py 15 100 $SIM "0.8" $HOMEDIR $DATADIR $TMPDIR
 done

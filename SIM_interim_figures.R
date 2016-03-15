@@ -8,22 +8,87 @@ library(colorRamps)
 library(gplots)
 library(gridExtra)
 library(vioplot)
+library(data.table)
+library(ggplot2)
 
-RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_peak_SIM/power_peak_SIM_15/"
 HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation/"
 FIGDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Paper/Studie_4_v1.4/Figures/"
 
-setwd(FIGDIR)
+subs <- 45
+sims <- 100
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
 effn <- rep(c("half","one","onehalf","two"),each=4)
-cons <- data.frame(effs,acts)
+
+##################################
+## READ IN NON-ADAPTIVE RESULTS ##
+##################################
+
+RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/power_SIM/"
+
+# results model table
+res.nonad <- data.frame()
+for(p in 1:sims){
+  file <- paste(RESDIR,"estimation_sim_",p,".csv",sep="")
+  if(!file.exists(file)){next}
+  res <- read.csv(file,header=FALSE,na.strings=c("nan"))
+  res$simulation <- p
+  res <- res[,c(11,1:10)]
+  res.nonad <- rbind(res.nonad,res)
+  names(res.nonad) <- c("simulation","eff","p","pi1e","pi1t","effe","efft","effex","sde","sdt","a")
+}
+
+# predicted power
+power.pre.nonad <- data.frame()
+for(p in ((1:sims))){
+  for (c in 1:16){
+    file <- paste(RESDIR,"powpre_sim_",p,"_w_",acts[c],"_e_",effn[c],".csv",sep="")
+    if(!file.exists(file)){next}
+    res <- read.table(file,sep=",",dec=".",header=TRUE)
+    if(is.null(res$BH)){res$BH <- NA}
+    res <- data.frame(p,c,1:59,res$UN,res$BH,res$BF,res$RFT)
+    power.pre.nonad <- rbind(power.pre.nonad,res)
+  }
+}
+    
+# observed power
+power.obs.nonad <- data.frame()
+for(p in 1:sims){
+  for (c in 1:16){
+    file <- paste(RESDIR,"powtru_sim_",p,"_w_",acts[c],"_e_",effn[c],".csv",sep="")
+    if(!file.exists(file)){next}
+    res <- read.table(file,sep=",",dec=".",header=TRUE)
+    resBF <- data.frame(p,1,c,res$BF_TP,res$BF_FP,res$BF_TN,res$BF_FN)
+    resBH <- data.frame(p,2,c,res$BH_TP,res$BH_FP,res$BH_TN,res$BH_FN)
+    resRFT <- data.frame(p,3,c,res$RFT_TP,res$RFT_FP,res$RFT_TN,res$RFT_FN)    
+    resUN <- data.frame(p,4,c,res$UN_TP,res$UN_FP,res$UN_TN,res$UN_FN)
+    resTOT <- data.frame(mapply(c,resBF,resBH,resRFT,resUN))
+    names(resTOT) <- c("simulation","mcp","condition","TP","FP","TN","FN")
+    resTOT$mcp <- ifelse(resTOT$mcp==1,"BF",ifelse(resTOT$mcp==2,"BH",ifelse(resTOT$mcp==3,"RFT","UN")))
+    resTOT$subs <- 15:59
+    power.obs.nonad <- rbind(power.obs.nonad,resTOT)
+  }
+}
+power.obs.nonad$TPR = power.obs.nonad$TP/(power.obs.nonad$TP+power.obs.nonad$FN)
+power.obs.nonad$FPR = power.obs.nonad$FP/(power.obs.nonad$FP+power.obs.nonad$TN)
+power.obs.nonad$FDR = power.obs.nonad$FP/(power.obs.nonad$FP+power.obs.nonad$TP)
+power.obs.nonad$FWER = ifelse(power.obs.nonad$FP>0,1,0)
+
+
+
+
+
 
 # read in results: model estimation
-estimation <- array(NA,dim=c(500,16,10))
-range <- (1:500)[-c(91)]
+estimation <- array(NA,dim=c(sims,16,10))
+range <- (1:sims)[-c(91)]
 for (p in range){
+    
+    
+  }
+  pred <- read.table,sep=",",dec=".",header=TRUE)
+  
   file <- paste(RESDIR,"estimation_sim_",p,".csv",sep="")
   res <- read.csv(file,header=FALSE,na.strings=c("nan"))
   names(res) <- c("eff","p","pi1e","pi1t","effe","efft","effex","sde","sdt","a")
@@ -32,8 +97,8 @@ for (p in range){
 
 
 # read in results: power estimation
-powpred <- array(NA,dim=c(500,4,4,20,4)) 
-powtrue <- array(NA,dim=c(500,4,4,20,4)) 
+powpred <- array(NA,dim=c(sims,4,4,subs,16)) 
+powtrue <- array(NA,dim=c(sims,4,4,subs,16)) 
 
 for(s in range){
   print(s)
@@ -59,8 +124,8 @@ for(s in range){
 powpred.av <- apply(powpred,c(2,3,4,5),mean,na.rm=TRUE)
 powtrue.av <- apply(powtrue,c(2,3,4,5),mean,na.rm=TRUE)
 
-powpred3D <- array(NA,dim=c(16,20,4))
-powtrue3D <- array(NA,dim=c(16,20,4))
+powpred3D <- array(NA,dim=c(16,subs,4))
+powtrue3D <- array(NA,dim=c(16,subs,4))
 k <- 0
 for(p in 1:4){
   for(e in 1:4){
@@ -254,20 +319,20 @@ dev.off()
 ######################################
 
 pilot_sub <- 15
-reqsub <- array(NA,dim=c(500,4,4,4))
-obsub <- array(NA,dim=c(500,4,4,4))
+reqsub <- array(NA,dim=c(sims,4,4,4))
+obsub <- array(NA,dim=c(sims,4,4,4))
 
-for(i in 1:500){
+for(i in 1:sims){
   print(i)
   for(j in 1:4){
     for(k in 1:4){
       for(l in 1:4){
         ind <- which(powpred[i,j,k,,l]>0.6)
         minind <- ifelse(sum(ind)>0,min(ind),NA)
-        reqsub[i,j,k,l] <- ifelse(sum(ind)>0,(pilot_sub:(pilot_sub+20))[minind],NA)
+        reqsub[i,j,k,l] <- ifelse(sum(ind)>0,(pilot_sub:(pilot_sub+45))[minind],NA)
         ind <- which(powtrue[i,j,k,,l]>0.6)
         minind <- ifelse(sum(ind)>0,min(ind),NA)
-        obsub[i,j,k,l] <- ifelse(sum(ind)>0,(pilot_sub:(pilot_sub+20))[minind],NA)
+        obsub[i,j,k,l] <- ifelse(sum(ind)>0,(pilot_sub:(pilot_sub+45))[minind],NA)
       }
     }
   }
@@ -285,16 +350,45 @@ for(i in 1:4){
     k <- k+1
     for(l in 1:4){
       vals <- c(vals,reqsub[,i,j,l],obsub[,i,j,l])
-      truest <- c(truest,rep("estimated",500),rep("observed",500))
-      MCP <- c(MCP,rep(l,1000))
-      cond <- c(cond,rep(k,1000))
+      truest <- c(truest,rep("estimated",sims),rep("observed",sims))
+      MCP <- c(MCP,rep(l,sims*2))
+      cond <- c(cond,rep(k,sims*2))
     }  
   }
 }
 
 res <- data.frame(vals,truest,MCP,cond)
 names(res) <- c("samplesize","truest","MCP","condition")
+res$newcon = ifelse(res$truest=="estimated",res$condition*2,res$condition*2-1)
 
-p <- ggplot(res[res$MCP==1,],aes(factor(condition),samplesize))
-p+geom_violin(aes(fill=factor(truest)),adjust=3)
+bias <- res$samplesize[res$truest=="estimated"]-res$samplesize[res$truest=="observed"]
+bias <- data.frame(bias,res$MCP[res$truest=="estimated"],c(res$newcon[res$truest=="estimated"]))
+names(bias) <- c("samplesize","MCP","newcon")
+
+resn <- res[$MCP==3,]
+p <- ggplot(bias[bias$MCP,],aes(factor(bias$newcon),bias$samplesize))
+p+geom_violin(adjust=3,width=2,trim=FALSE)
+p+geom_boxplot() + geom_jitte
+
+
+
+
+FDR <- power.obs.nonad[power.obs.nonad$mcp=="BH",]
+p <- ggplot(FDR,aes(factor(condition),FDR))
+p + geom_violin(trim=FALSE,aes(fill=factor(subs)))
+
+nana <- ddply(FDR,~condition+subs,summarise,mean=mean(FDR))
+plot()
+
+p <- ggplot(data=nana, aes(x=subs, y=mean, group = condition, colour = condition))
+p+geom_line()
+
+enter image description here
+
+FWE <- power.obs.nonad[power.obs.nonad$mcp=="RFT",]
+nana <- ddply(FWE,~condition+subs,summarise,mean=mean(FWER),na.rm=TRUE)
+UN <- power.obs.nonad[power.obs.nonad$mcp=="UN",]
+nana <- ddply(UN,~condition+subs,summarise,mean=mean(FPR),na.rm=TRUE)
+linmod <- lm(FPR~condition+subs,data=power.obs.nonad[power.obs.nonad$mcp=="UN",])
+
 
