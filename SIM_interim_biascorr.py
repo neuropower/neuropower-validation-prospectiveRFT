@@ -10,9 +10,10 @@ pilot_sub = int(sys.argv[1])
 final_sub = int(sys.argv[2])
 seed = int(sys.argv[3])
 pow = float(sys.argv[4])
-HOMEDIR = sys.argv[5]
-DATADIR = sys.argv[6]
-TMPDIR = sys.argv[7]
+cor = int(sys.argv[5])
+HOMEDIR = sys.argv[6]
+DATADIR = sys.argv[7]
+TMPDIR = sys.argv[8]
 os.chdir(HOMEDIR)
 
 import numpy as np
@@ -33,7 +34,8 @@ import model
 import pandas as pd
 
 TEMPDIR = os.path.join(TMPDIR,"temporary_"+str(seed)+"/")
-resfile = os.path.join(DATADIR,"estimation_sim_"+str(seed)+".csv")
+correction = "cor" if cor==1 else "uncor"
+resfile = os.path.join(DATADIR,"estimation_sim_"+str(seed)+"_"+correction+".csv")
 if os.path.isfile(resfile):
     os.remove(resfile)
 
@@ -129,8 +131,6 @@ for c in range(16):
 
     # write away estimation results with true values
 
-    shutil.rmtree(TEMPDIR)
-
     if bum['pi1'] == 0:
         estimation = [effectsize, str(wd_names[c]), bum['pi1'],true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,bum['a']]
         fd = open(resfile,"a")
@@ -151,59 +151,86 @@ for c in range(16):
 
     pred_power = pd.DataFrame(power_predicted)
     pred_power['newsub'] = range(pilot_sub,final_sub)
-    #if all(pred_power['UN']<0.8)
-    minind = int(np.min([i for i,elem in enumerate(pred_power['UN']>pow,1) if elem]))
-    SS_UN = pred_power['newsub'][minind]-1
-    minind = int(np.min([i for i,elem in enumerate(pred_power['BF']>pow,1) if elem]))
-    SS_BF = pred_power['newsub'][minind]-1
-    minind = int(np.min([i for i,elem in enumerate(pred_power['RFT']>pow,1) if elem]))
-    SS_RFT = pred_power['newsub'][minind]-1
-    if "BH" in pred_power.columns:
+    if all(pred_power['UN']<0.8):
+        SS_UN = None
+    else:
+        minind = int(np.min([i for i,elem in enumerate(pred_power['UN']>pow,1) if elem]))
+        SS_UN = pred_power['newsub'][minind]-1
+
+    if all(pred_power['BF']<0.8):
+        SS_BF = None
+    else:
+        minind = int(np.min([i for i,elem in enumerate(pred_power['BF']>pow,1) if elem]))
+        SS_BF = pred_power['newsub'][minind]-1
+
+    if all(pred_power['RFT']<0.8):
+        SS_RFT = None
+    else:
+        minind = int(np.min([i for i,elem in enumerate(pred_power['RFT']>pow,1) if elem]))
+        SS_RFT = pred_power['newsub'][minind]-1
+
+    if not "BH" in pred_power.columns:
+        SS_BH = None
+    elif all(pred_power['BH']<0.8):
+        SS_BH = None
+    else:
         minind = int(np.min([i for i,elem in enumerate(pred_power['BH']>pow,1) if elem]))
         SS_BH = pred_power['newsub'][minind]-1
-    else:
-        SS_BH = None
 
     ###############
     # UNCORRECTED #
     ###############
 
-    os.mkdir(TEMPDIR)
-    os.chdir(TEMPDIR)
-    power_true = []
-    data_final = data[:,:,:,0:SS_UN]
-    img=nib.Nifti1Image(data_final,np.eye(4))
-    img.to_filename("simulation.nii.gz")
-    # analyse data and extract peaks
-    model.model(SS_UN,TEMPDIR)
-    fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
-    os.popen(fslcmd).read()
-    SPM_c = nib.load("stats/tstat1.nii.gz").get_data()
-    p_values = t.cdf(-SPM_t, df = SS_UN-1)
-    SPM_z = -norm.ppf(p_values)
-    SPM = SPM_z[::-1,:,:]
-    peaks = cluster.cluster(SPM,exc)
-    pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-    pvalues = [max(10**(-6),k) for k in pvalues]
-    peaks['pval'] = pvalues
-    # compute true power for different procedures
-    truth = []
-    for i in range(len(peaks)):
-        peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
-        truth.append(peak_act)
-        truth = [0 if x == 0 else 1 for x in truth]
-    peaks['active'] = truth
-    thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
-    if np.sum(peaks.peak>exc) == 0:
-        UN_TP = UN_FP = UN_TN = UN_FN = 0
-    else:
-        pos = peaks.peak>thresholds["UN"]
-        true = peaks.active==1
-        UN_TP = np.sum([a and b for a,b in zip(pos,true)])
-        UN_FP = np.sum([a and not b for a,b in zip(pos,true)])
-        UN_FN = np.sum([b and not a for a,b in zip(pos,true)])
-        UN_TN = np.sum([not a and not b for a,b in zip(pos,true)])
     shutil.rmtree(TEMPDIR)
+
+    if SS_UN:
+        os.mkdir(TEMPDIR)
+        os.chdir(TEMPDIR)
+        power_true = []
+        data_final = data[:,:,:,0:SS_UN]
+        img=nib.Nifti1Image(data_final,np.eye(4))
+        img.to_filename("simulation.nii.gz")
+        # analyse data and extract peaks
+        model.model(SS_UN,TEMPDIR)
+        fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
+        os.popen(fslcmd).read()
+        if cor == 1:
+            SPM_B = nib.load("stats/cope1.nii.gz").get_data()
+            SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
+            SPM_VAR = SPM_SE*SS_UN
+            v = SS_UN/est_sd
+            SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
+            SPM_SE_BC = SPM_VAR_BC/SS_UN
+            SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+        else:
+            SPM_t = nib.load("stats/tstat1.nii.gz").get_data()
+        p_values = t.cdf(-SPM_t, df = SS_UN-1)
+        SPM_z = -norm.ppf(p_values)
+        SPM = SPM_z[::-1,:,:]
+        peaks = cluster.cluster(SPM,exc)
+        pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
+        pvalues = [max(10**(-6),k) for k in pvalues]
+        peaks['pval'] = pvalues
+        # compute true power for different procedures
+        truth = []
+        for i in range(len(peaks)):
+            peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
+            truth.append(peak_act)
+            truth = [0 if x == 0 else 1 for x in truth]
+        peaks['active'] = truth
+        thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
+        if np.sum(peaks.peak>exc) == 0:
+            UN_TP = UN_FP = UN_TN = UN_FN = 'nan'
+        else:
+            pos = peaks.peak>thresholds["UN"]
+            true = peaks.active==1
+            UN_TP = np.sum([a and b for a,b in zip(pos,true)])
+            UN_FP = np.sum([a and not b for a,b in zip(pos,true)])
+            UN_FN = np.sum([b and not a for a,b in zip(pos,true)])
+            UN_TN = np.sum([not a and not b for a,b in zip(pos,true)])
+        shutil.rmtree(TEMPDIR)
+    else:
+        UN_TP = UN_FP = UN_TN = UN_FN = 'nan'
 
     ######
     # BH #
@@ -220,7 +247,16 @@ for c in range(16):
         model.model(SS_BH,TEMPDIR)
         fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
         os.popen(fslcmd).read()
-        SPM_c = nib.load("stats/tstat1.nii.gz").get_data()
+        if cor == 1:
+            SPM_B = nib.load("stats/cope1.nii.gz").get_data()
+            SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
+            SPM_VAR = SPM_SE*SS_BH
+            v = SS_BH/est_sd
+            SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
+            SPM_SE_BC = SPM_VAR_BC/SS_BH
+            SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+        else:
+            SPM_t = nib.load("stats/tstat1.nii.gz").get_data()
         p_values = t.cdf(-SPM_t, df = SS_BH-1)
         SPM_z = -norm.ppf(p_values)
         SPM = SPM_z[::-1,:,:]
@@ -237,7 +273,7 @@ for c in range(16):
         peaks['active'] = truth
         thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
         if np.sum(peaks.peak>exc) == 0:
-            BH_TP = BH_FP = BH_TN = BH_FN = 0
+            BH_TP = BH_FP = BH_TN = BH_FN = 'nan'
         else:
             pos = peaks.peak>thresholds["BH"]
             true = peaks.active==1
@@ -247,89 +283,113 @@ for c in range(16):
             BH_TN = np.sum([not a and not b for a,b in zip(pos,true)])
         shutil.rmtree(TEMPDIR)
     else:
-        BH_TP = BH_FP = BH_TN = BH_FN = 0
+        BH_TP = BH_FP = BH_TN = BH_FN = 'nan'
 
     ######
     # BF #
     ######
 
-    os.mkdir(TEMPDIR)
-    os.chdir(TEMPDIR)
-    power_true = []
-    data_final = data[:,:,:,0:SS_BF]
-    img=nib.Nifti1Image(data_final,np.eye(4))
-    img.to_filename("simulation.nii.gz")
-    # analyse data and extract peaks
-    model.model(SS_BF,TEMPDIR)
-    fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
-    os.popen(fslcmd).read()
-    SPM_c = nib.load("stats/tstat1.nii.gz").get_data()
-    p_values = t.cdf(-SPM_t, df = SS_BF-1)
-    SPM_z = -norm.ppf(p_values)
-    SPM = SPM_z[::-1,:,:]
-    peaks = cluster.cluster(SPM,exc)
-    pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-    pvalues = [max(10**(-6),k) for k in pvalues]
-    peaks['pval'] = pvalues
-    # compute true power for different procedures
-    truth = []
-    for i in range(len(peaks)):
-        peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
-        truth.append(peak_act)
-        truth = [0 if x == 0 else 1 for x in truth]
-    peaks['active'] = truth
-    thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
-    if np.sum(peaks.peak>exc) == 0:
-        BF_TP = BF_FP = BF_TN = BF_FN = 0
+    if SS_BF:
+        os.mkdir(TEMPDIR)
+        os.chdir(TEMPDIR)
+        power_true = []
+        data_final = data[:,:,:,0:SS_BF]
+        img=nib.Nifti1Image(data_final,np.eye(4))
+        img.to_filename("simulation.nii.gz")
+        # analyse data and extract peaks
+        model.model(SS_BF,TEMPDIR)
+        fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
+        os.popen(fslcmd).read()
+        if cor == 1:
+            SPM_B = nib.load("stats/cope1.nii.gz").get_data()
+            SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
+            SPM_VAR = SPM_SE*SS_BF
+            v = SS_BF/est_sd
+            SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
+            SPM_SE_BC = SPM_VAR_BC/SS_BF
+            SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+        else:
+            SPM_t = nib.load("stats/tstat1.nii.gz").get_data()
+        p_values = t.cdf(-SPM_t, df = SS_BF-1)
+        SPM_z = -norm.ppf(p_values)
+        SPM = SPM_z[::-1,:,:]
+        peaks = cluster.cluster(SPM,exc)
+        pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
+        pvalues = [max(10**(-6),k) for k in pvalues]
+        peaks['pval'] = pvalues
+        # compute true power for different procedures
+        truth = []
+        for i in range(len(peaks)):
+            peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
+            truth.append(peak_act)
+            truth = [0 if x == 0 else 1 for x in truth]
+        peaks['active'] = truth
+        thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
+        if np.sum(peaks.peak>exc) == 0:
+            BF_TP = BF_FP = BF_TN = BF_FN = 0
+        else:
+            pos = peaks.peak>thresholds["BF"]
+            true = peaks.active==1
+            BF_TP = np.sum([a and b for a,b in zip(pos,true)])
+            BF_FP = np.sum([a and not b for a,b in zip(pos,true)])
+            BF_FN = np.sum([b and not a for a,b in zip(pos,true)])
+            BF_TN = np.sum([not a and not b for a,b in zip(pos,true)])
+        shutil.rmtree(TEMPDIR)
     else:
-        pos = peaks.peak>thresholds["BF"]
-        true = peaks.active==1
-        BF_TP = np.sum([a and b for a,b in zip(pos,true)])
-        BF_FP = np.sum([a and not b for a,b in zip(pos,true)])
-        BF_FN = np.sum([b and not a for a,b in zip(pos,true)])
-        BF_TN = np.sum([not a and not b for a,b in zip(pos,true)])
-    shutil.rmtree(TEMPDIR)
+        BF_TP = BF_FP = BF_TN = BF_FN = 'nan'
 
     #######
     # RFT #
     #######
 
-    os.mkdir(TEMPDIR)
-    os.chdir(TEMPDIR)
-    power_true = []
-    data_final = data[:,:,:,0:SS_RFT]
-    img=nib.Nifti1Image(data_final,np.eye(4))
-    img.to_filename("simulation.nii.gz")
-    # analyse data and extract peaks
-    model.model(SS_RFT,TEMPDIR)
-    fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
-    os.popen(fslcmd).read()
-    SPM_c = nib.load("stats/tstat1.nii.gz").get_data()
-    p_values = t.cdf(-SPM_t, df = SS_RFT-1)
-    SPM_z = -norm.ppf(p_values)
-    SPM = SPM_z[::-1,:,:]
-    peaks = cluster.cluster(SPM,exc)
-    pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-    pvalues = [max(10**(-6),k) for k in pvalues]
-    peaks['pval'] = pvalues
-    # compute true power for different procedures
-    truth = []
-    for i in range(len(peaks)):
-        peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
-        truth.append(peak_act)
-        truth = [0 if x == 0 else 1 for x in truth]
-    peaks['active'] = truth
-    thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
-    if np.sum(peaks.peak>exc) == 0:
-        RFT_TP = RFT_FP = RFT_TN = RFT_FN = 0
+    if SS_RFT:
+        os.mkdir(TEMPDIR)
+        os.chdir(TEMPDIR)
+        power_true = []
+        data_final = data[:,:,:,0:SS_RFT]
+        img=nib.Nifti1Image(data_final,np.eye(4))
+        img.to_filename("simulation.nii.gz")
+        # analyse data and extract peaks
+        model.model(SS_RFT,TEMPDIR)
+        fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
+        os.popen(fslcmd).read()
+        if cor == 1:
+            SPM_B = nib.load("stats/cope1.nii.gz").get_data()
+            SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
+            SPM_VAR = SPM_SE*SS_RFT
+            v = SS_RFT/est_sd
+            SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
+            SPM_SE_BC = SPM_VAR_BC/SS_RFT
+            SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+        else:
+            SPM_t = nib.load("stats/tstat1.nii.gz").get_data()
+        p_values = t.cdf(-SPM_t, df = SS_RFT-1)
+        SPM_z = -norm.ppf(p_values)
+        SPM = SPM_z[::-1,:,:]
+        peaks = cluster.cluster(SPM,exc)
+        pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
+        pvalues = [max(10**(-6),k) for k in pvalues]
+        peaks['pval'] = pvalues
+        # compute true power for different procedures
+        truth = []
+        for i in range(len(peaks)):
+            peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
+            truth.append(peak_act)
+            truth = [0 if x == 0 else 1 for x in truth]
+        peaks['active'] = truth
+        thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
+        if np.sum(peaks.peak>exc) == 0:
+            RFT_TP = RFT_FP = RFT_TN = RFT_FN = 0
+        else:
+            pos = peaks.peak>thresholds["RFT"]
+            true = peaks.active==1
+            RFT_TP = np.sum([a and b for a,b in zip(pos,true)])
+            RFT_FP = np.sum([a and not b for a,b in zip(pos,true)])
+            RFT_FN = np.sum([b and not a for a,b in zip(pos,true)])
+            RFT_TN = np.sum([not a and not b for a,b in zip(pos,true)])
+        shutil.rmtree(TEMPDIR)
     else:
-        pos = peaks.peak>thresholds["RFT"]
-        true = peaks.active==1
-        RFT_TP = np.sum([a and b for a,b in zip(pos,true)])
-        RFT_FP = np.sum([a and not b for a,b in zip(pos,true)])
-        RFT_FN = np.sum([b and not a for a,b in zip(pos,true)])
-        RFT_TN = np.sum([not a and not b for a,b in zip(pos,true)])
-    shutil.rmtree(TEMPDIR)
+        RFT_TP = RFT_FP = RFT_TN = RFT_FN = 'nan'
 
     discr = scipy.stats.norm.cdf(exc,est_eff,est_sd)
 

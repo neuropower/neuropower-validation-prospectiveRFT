@@ -16,6 +16,7 @@ os.chdir(HOMEDIR)
 
 import numpy as np
 import scipy
+from scipy.stats import norm, t
 import math
 import nibabel as nib
 import shutil
@@ -93,7 +94,7 @@ for c in range(16):
     # compute P-values
 
     pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-    pvalues = [max(10**(-6),t) for t in pvalues]
+    pvalues = [max(10**(-6),p) for p in pvalues]
     peaks['pval'] = pvalues
 
     # estimate model
@@ -168,11 +169,19 @@ for c in range(16):
         fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
         os.popen(fslcmd).read()
 
-        SPM = nib.load("stats/zstat1.nii.gz").get_data()
-        SPM = SPM[::-1,:,:]
+        SPM_B = nib.load("stats/cope1.nii.gz").get_data()
+        SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
+        SPM_VAR = SPM_SE*s
+        v = s/est_sd
+        SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
+        SPM_SE_BC = SPM_VAR_BC/s
+        SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+        p_values = t.cdf(-SPM_t, df = s-1)
+        SPM_z = -norm.ppf(p_values)
+        SPM = SPM_z[::-1,:,:]
         peaks = cluster.cluster(SPM,exc)
         pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-        pvalues = [max(10**(-6),t) for t in pvalues]
+        pvalues = [max(10**(-6),p) for p in pvalues]
         peaks['pval'] = pvalues
 
         # compute true power for different procedures

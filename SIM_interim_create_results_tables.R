@@ -148,34 +148,38 @@ write.table(power.obs.ad,paste(RESDIR,"tables/power_observed_adaptive.txt",sep="
 # results model table
 res.bias <- data.frame()
 for(p in 1:sims){
-  file <- paste(RESDIR,"bias/estimation_sim_",p,".csv",sep="")
-  if(!file.exists(file)){next}
-  res <- read.csv(file,header=FALSE,na.strings=c("nan"))
-  names(res) <- c("effect","width","pi1e","pi1t","effe","efft","expeff","sde","sdt","buma",
-  "SS_UN","SS_BH","SS_RFT","SS_BF","discrepancy",
-  "UN_TP","UN_FP","UN_FN","UN_TN",
-  "BH_TP","BH_FP","BH_FN","BH_TN",
-  "RFT_TP","RFT_FP","RFT_FN","RFT_TN",
-  "BF_TP","BF_FP","BF_FN","BF_TN")
-  ressh <- reshape(res,
-    varying=list(c("SS_UN","SS_BH","SS_RFT","SS_BF"),
-    c("UN_TP","UN_FP","UN_FN","UN_TN"),
-    c("BH_TP","BH_FP","BH_FN","BH_TN"),
-    c("RFT_TP","RFT_FP","RFT_FN","RFT_TN"),
-    c("BF_TP","BF_FP","BF_FN","BF_TN")),
-    v.names=c("SS","TP","FP","FN","TN"),
-    direction="long",
-    sep="_",
-    timevar="method"
-    )
-  ressh$method <- ifelse(ressh$method==1,"UN",ifelse(ressh$method==2,"BH",ifelse(ressh$method==3,"RFT","BF")))
-  ressh$simulation <- p
-  ressh <- ressh[,c(19,18,1,2,12,3:11,13:17)]
-  names(ressh) <- c("simulation","condition","effect","width","method","pi1e","pi1t","effe","efft","expeff","sde","sdt","buma","discrepancy","SS","TP","FP","FN","TN")
-  ressh$TPR = ressh$TP/(ressh$TP+ressh$FN)
-  ressh$FPR = ressh$FP/(ressh$FP+ressh$TN)
-  ressh$FDR = ressh$FP/(ressh$FP+ressh$TP)
-  ressh$FWER = ifelse(ressh$FP>0,1,0)
-  res.bias <- rbind(res.bias,ressh)
+  for(c in 1:2){
+    str <- ifelse(c == 1,"_cor","_uncor")
+    file <- paste(RESDIR,"bias/estimation_sim_",p,str,".csv",sep="")
+    if(!file.exists(file)){next}
+    res <- read.csv(file,header=FALSE,na.strings=c("nan"))
+    names(res) <- c("effect","width","pi1e","pi1t","effe","efft","expeff","sde","sdt","buma",
+    "SS_UN","SS_BH","SS_RFT","SS_BF","discrepancy",
+    "UN_TP","UN_FP","UN_FN","UN_TN",
+    "BH_TP","BH_FP","BH_FN","BH_TN",
+    "RFT_TP","RFT_FP","RFT_FN","RFT_TN",
+    "BF_TP","BF_FP","BF_FN","BF_TN")
+    ressh <- reshape(res,
+      varying=list(c("SS_UN","SS_BH","SS_RFT","SS_BF"),
+      c("UN_TP","BH_TP","BF_TP","RFT_TP"),
+      c("UN_FP","BH_FP","BF_FP","RFT_FP"),
+      c("UN_FN","BH_FN","BF_FN","RFT_FN"),
+      c("UN_TN","BH_TN","BF_TN","RFT_TN")),
+      v.names=c("SS","TP","FP","FN","TN"),
+      direction="long",
+      sep="_",
+      timevar="method"
+      )
+    ressh$method <- ifelse(ressh$method==1,"UN",ifelse(ressh$method==2,"BH",ifelse(ressh$method==3,"RFT","BF")))
+    ressh$simulation <- p
+    ressh$cor <- ifelse(c==1,0,1)
+    ressh <- ressh[,c(19,18,1,2,12,20,3:11,13:17)]
+    names(ressh) <- c("simulation","condition","effect","width","method","correction","pi1e","pi1t","effe","efft","expeff","sde","sdt","buma","discrepancy","SS","TP","FP","FN","TN")
+    ressh$TPR = ressh$TP/(ressh$TP+ressh$FN)
+    ressh$FPR = ressh$FP/(ressh$FP+ressh$TN)
+    ressh$FDR = ressh$FP/(ressh$FP+ressh$TP)
+    ressh$FWER = ifelse(ressh$FP>0,1,0)
+    res.bias <- rbind(res.bias,ressh)
+  }
 }
 write.table(res.bias,paste(RESDIR,"tables/results_bias.txt",sep=""))
