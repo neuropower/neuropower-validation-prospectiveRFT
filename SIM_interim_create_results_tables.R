@@ -1,7 +1,7 @@
 library(reshape)
 
 subs <- 46
-sims <- 600
+sims <- 900
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
