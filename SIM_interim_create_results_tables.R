@@ -121,7 +121,7 @@ power.obs.ad <- data.frame()
 for(p in 1:sims){
   print(p)
   for (c in 1:16){
-    file <- paste(RESDIR,"nonadaptive/powtru_sim_",p,"_w_",acts[c],"_e_",effn[c],".csv",sep="")
+    file <- paste(RESDIR,"adaptive/powtru_sim_",p,"_w_",acts[c],"_e_",effn[c],".csv",sep="")
     if(!file.exists(file)){next}
     res <- read.table(file,sep=",",dec=".",header=TRUE)
     resBF <- data.frame(p,1,c,res$BF_TP,res$BF_FP,res$BF_TN,res$BF_FN)
