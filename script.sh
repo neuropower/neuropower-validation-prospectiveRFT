@@ -16,13 +16,13 @@ i=1
 export i
 sbatch SIM_interim.sbatch
 
-for i in {301..500}
+for i in {1..200}
 do
   export i
-  sbatch SIM_interim3.sbatch
+  sbatch SIM_interim.sbatch
 done
 
-for i in {1..50}
+for i in {1..20}
 do
   export i
   sbatch SIM_interim_biascorr.sbatch

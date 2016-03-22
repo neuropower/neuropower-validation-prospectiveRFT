@@ -53,7 +53,7 @@ for c in range(16):
     es_names = np.repeat(["half","one","onehalf","two"],4)
     wd_names = [2,4,6,8]*4
     #parameters
-    exc = 2.3
+    exc = 3.2
     smooth_FWHM = 3
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))

@@ -49,7 +49,7 @@ for c in range(16):
     es_names = np.repeat(["half","one","onehalf","two"],4)
     wd_names = [2,4,6,8]*4
     #parameters
-    exc = 2.3
+    exc = 3.2
     smooth_FWHM = 3
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
@@ -171,11 +171,12 @@ for c in range(16):
 
         SPM_B = nib.load("stats/cope1.nii.gz").get_data()
         SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
-        SPM_VAR = SPM_SE*s
-        v = s/est_sd
-        SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
-        SPM_SE_BC = SPM_VAR_BC/s
-        SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+        #SPM_VAR = SPM_SE*s
+        #v = s/est_sd
+        #SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
+        #SPM_SE_BC = SPM_VAR_BC/s
+        #SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
+        SPM_t = SPM_B/np.sqrt(SPM_SE)
         p_values = t.cdf(-SPM_t, df = s-1)
         SPM_z = -norm.ppf(p_values)
         SPM = SPM_z[::-1,:,:]
