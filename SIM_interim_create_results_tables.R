@@ -1,7 +1,7 @@
 library(reshape)
 
 subs <- 46
-sims <- 900
+sims <- 600
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
@@ -86,7 +86,7 @@ for(p in 1:sims){
   if(!file.exists(file)){next}
   res <- read.csv(file,header=FALSE,na.strings=c("nan"))
   res$simulation <- p
-  res$condition <- 1:16
+  res$condition <- 1:(dim(res)[1])
   res <- res[,c(11,12,1:10)]
   names(res) <- c("simulation","condition","eff","p","pi1e","pi1t","effe","efft","effex","sde","sdt","a")
   res.ad <- rbind(res.ad,res)

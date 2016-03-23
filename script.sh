@@ -7,7 +7,7 @@ scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/SIM_interi
 # from sherlock to home
 
 scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/power_SIM.tar.gz ~/Downloads/
-scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/interim2.tar.gz ~/Downloads/
+scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/interim.tar.gz ~/Downloads/
 
 srun -p russpold --qos=russpold --time=10:00:00 --x11 -n1 --pty bash
 srun --time=4:00:00 --x11 --pty bash
