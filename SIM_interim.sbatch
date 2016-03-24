@@ -9,8 +9,8 @@
 #SBATCH --qos=russpold
 
 #TMPDIR="/local-scratch/jdurnez/7606565/"
-NADIR="/scratch/users/jdurnez/interim/nonadaptive/"
-ADIR="/scratch/users/jdurnez/interim/adaptive/"
+NADIR="/scratch/users/jdurnez/interim/sim_nonadaptive/"
+ADIR="/scratch/users/jdurnez/interim/sim_adaptive/"
 TMPDIR=$LOCAL_SCRATCH
 HOMEDIR="/home/jdurnez/power_peak/"
 

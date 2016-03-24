@@ -258,7 +258,7 @@ fig[[1]] <- fig[[2]] <- fig[[3]] <- fig[[4]] <- list()
 titles <- c("FPR control (uncorrected) \n adaptive design","FPR control (uncorrected) \n fixed design", 
             "FDR control (Benjamini-Hochberg) \n adaptive design","FDR control (Benjamini-Hocbherg) \n fixed design",
             "FWER control (Bonferroni) \n adaptive design","FWER control (Bonferroni)  \n fixed design",
-            "FWER control (RFT) adaptive design","FWER control (RFT) fixed design")
+            "FWER control (RFT) \n adaptive design","FWER control (RFT) \n fixed design")
 control <- rep(c("FPR","FDR","FWER","FWER") ,each=2)
 
 k <- 0
@@ -266,7 +266,7 @@ for(m in 1:4){
   for(n in 1:2){
     k <- k+1
     fig[[m]][[n]] <- p[[m]][[n]] +
-      geom_point(size=3) + 
+      #geom_point(size=3) + 
       geom_line() +
       geom_hline(aes(yintercept=0.05)) +
       theme(panel.background = element_rect(fill = NA, colour = "white"),
@@ -292,7 +292,7 @@ dat <- data.frame(a = factor(acts), b = factor(effs),c=cons_list)
 leg <- ggplotGrob(
   ggplot(unique(subset(dat, select = a:b)), 
          aes(a, b, colour=cons_list)) + 
-    geom_point(size=10) +
+    geom_point(size=10, shape=15) +
     theme(panel.background = element_rect(fill = NA, colour = "white"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
@@ -300,8 +300,8 @@ leg <- ggplotGrob(
           axis.ticks = element_blank()) +
     scale_colour_manual(labels=rep("",16), 
                         values = cols) +
-    labs(x = "effect size",
-         y = "percentage activation")
+    labs(x = "percentage active",
+         y = "effect size")
   )
 
 
@@ -317,9 +317,9 @@ grid.arrange(
               fig[[3]][[2]],
               fig[[4]][[2]],
               nrow=4),
-  arrangeGrob(empty,leg,empty,nrow=3),
+  arrangeGrob(empty,leg,empty,nrow=3,heights=c(3/7,1/7,3/7)),
   ncol=3,
-  widths = c(2/5,2/5,1/5),
+  widths = c(3/7,3/7,1/7),
   main="Comparison of adaptive and non-adaptive designs \nin the coltrol of false positives"
 )
 dev.off()
@@ -375,6 +375,7 @@ dev.off()
 ######################################
 
 mcps <- c("UN","BH","BF","RFT")
+method_n <- c("Uncorrected","Benjamini-Hochberg","Bonferroni","Random Field Theory")
 
 # compute minimal sample size
 
@@ -436,7 +437,7 @@ p[[m]] <- im +
   ylim(c(15,60))+
   labs(x="Percentage of brain active",
        y = "Sample size",
-       title=method[m])
+       title=method_n[m])
 }
 
 legend <- g_legend(im+geom_line()+geom_point() + theme(legend.key = element_rect(fill = NA, colour = NA)) +scale_colour_manual(labels=rep(c(0.5,1,1.5,2),4), values = cols[9:12]))

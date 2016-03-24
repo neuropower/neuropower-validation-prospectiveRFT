@@ -36,7 +36,7 @@ os.chdir(TMPDIR)
 all_sub = 180
 true_sub = 100
 
-exc=2.3
+exc= 3.2
 
 resfile = os.path.join(RESDIR,"estimation_hcp_"+str(seed)+".csv")
 if os.path.isfile(resfile):

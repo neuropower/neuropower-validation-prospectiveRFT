@@ -16,7 +16,7 @@ i=1
 export i
 sbatch SIM_interim.sbatch
 
-for i in {1..200}
+for i in {201..400}
 do
   export i
   sbatch SIM_interim.sbatch
@@ -27,6 +27,13 @@ do
   export i
   sbatch SIM_interim_biascorr.sbatch
 done
+
+for i in {260..500}
+do
+  export i
+  sbatch HCP_interim.sbatch
+done
+
 
 # check number of entries in result files
 for j in $(seq 1 500);
