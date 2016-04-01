@@ -6,14 +6,14 @@ from __future__ import division
 import os
 import sys
 sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
-pilot_sub = int(sys.argv[1])
-final_sub = int(sys.argv[2])
-seed = int(sys.argv[3])
-HOMEDIR = sys.argv[4]
-DATADIR = sys.argv[5]
-TMPDIR = sys.argv[6]
-RESDIR = sys.argv[7]
-
+clthres = float(sys.argv[1])
+pilot_sub = int(sys.argv[2])
+final_sub = int(sys.argv[3])
+seed = int(sys.argv[4])
+HOMEDIR = sys.argv[5]
+DATADIR = sys.argv[6]
+TMPDIR = sys.argv[7]
+RESDIR = sys.argv[8]
 os.chdir(HOMEDIR)
 
 import numpy as np
@@ -36,7 +36,7 @@ os.chdir(TMPDIR)
 all_sub = 180
 true_sub = 100
 
-exc= 3.2
+exc= clthres
 
 resfile = os.path.join(RESDIR,"estimation_hcp_"+str(seed)+".csv")
 if os.path.isfile(resfile):

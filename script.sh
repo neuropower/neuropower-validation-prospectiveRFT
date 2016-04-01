@@ -15,11 +15,12 @@ srun --time=4:00:00 --x11 --pty bash
 i=1
 export i
 sbatch SIM_interim.sbatch
+sbatch HCP_interim.sbatch
 
-for i in {201..400}
+for i in {1..250}
 do
   export i
-  sbatch SIM_interim.sbatch
+  sbatch HCP_interim.sbatch
 done
 
 for i in {1..20}
@@ -40,3 +41,10 @@ for j in $(seq 1 500);
 do
   more estimation_hcp_$j.csv | wc
 done
+
+
+
+sim_adaptive / u2 : 750
+sim_adaptive / u3 : 1196
+sim_nonadaptive / u2 : 750
+sim_nonadaptive / u3 : 1186

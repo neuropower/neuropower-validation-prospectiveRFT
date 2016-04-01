@@ -6,12 +6,13 @@ from __future__ import division
 import os
 import sys
 sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
-pilot_sub = int(sys.argv[1])
-final_sub = int(sys.argv[2])
-seed = int(sys.argv[3])
-HOMEDIR = sys.argv[4]
-DATADIR = sys.argv[5]
-TMPDIR = sys.argv[6]
+clthres = float(sys.argv[1])
+pilot_sub = int(sys.argv[2])
+final_sub = int(sys.argv[3])
+seed = int(sys.argv[4])
+HOMEDIR = sys.argv[5]
+DATADIR = sys.argv[6]
+TMPDIR = sys.argv[7]
 os.chdir(HOMEDIR)
 
 import numpy as np
@@ -48,7 +49,7 @@ for c in range(16):
     es_names = np.repeat(["half","one","onehalf","two"],4)
     wd_names = [2,4,6,8]*4
     #parameters
-    exc = 3.2
+    exc = clthres
     smooth_FWHM = 3
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
