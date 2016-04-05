@@ -17,7 +17,7 @@ export i
 sbatch SIM_interim.sbatch
 sbatch HCP_interim.sbatch
 
-for i in {1..250}
+for i in {251..500}
 do
   export i
   sbatch HCP_interim.sbatch
