@@ -48,3 +48,7 @@ sim_adaptive / u2 : 750
 sim_adaptive / u3 : 1196
 sim_nonadaptive / u2 : 750
 sim_nonadaptive / u3 : 1186
+hcp_adaptive / u2 : ?!
+hcp_adaptive / u3 : 500
+hcp_nonadaptive / u2: 250
+hcp_nonadaptive / u3: 500
