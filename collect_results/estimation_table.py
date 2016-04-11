@@ -13,11 +13,13 @@ basefolder = sys.argv[7]
 outfolder = sys.argv[8]
 
 folder = os.path.join(basefolder+'/interim',modality+'_'+adaptive,threshold)
-outfile = os.path.join(outfolder,modality+'_'+adaptive+'_'+threshold+'.csv')
+outfile = os.path.join(outfolder,"estimation_",modality+'_'+adaptive+'_'+threshold+'.csv')
 
 results = []
 for p in range(sims):
     file = os.path.join(folder,"estimation_"+modality+"_"+str(p+1)+".csv")
+    if not os.path.isfile(file):
+        continue
     res = pd.read_csv(file,header=None)
     res['sim']=p+1
     results.append(res)
