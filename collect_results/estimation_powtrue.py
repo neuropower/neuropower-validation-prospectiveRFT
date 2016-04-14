@@ -36,17 +36,21 @@ for p in range(sims):
                 res['BH']='nan'
         res['subjects']=range(pilot_sub,final_sub)
         if modality == 'hcp':
-            longres = pd.melt(res,id_vars=['subjects'],value_vars=['BF','UN','BH','RFT'])
+            longres = pd.melt(res,id_vars=['subjects'],value_vars=['BF','UN','BH','RF'])
             longres.columns = ['subjects','mcp','power']
-            longres['simulation'] = p
-            longres['condition'] = c
         if modality == 'sim':
             resverylong = pd.melt(res,id_vars=['subjects'],value_vars=names)
-            resverylong['MCP']=[x[0:2] for x in resverylong.variable]
+            resverylong['mcp']=[x[0:2] for x in resverylong.variable]
             resverylong['err']=[x[-2:] for x in resverylong.variable]
             resverylong = resverylong.drop('variable',1)
-            longres = pd.pivot_table(resverylong,values="value",index=['MCP','subjects'],columns=['err'])
-            longres = longres.reset_index(level=['MCP','subjects'])
+            longres = pd.pivot_table(resverylong,values="value",index=['mcp','subjects'],columns=['err'])
+            longres = longres.reset_index(level=['mcp','subjects'])
+            longres['TPR'] = longres.TP/(longres.TP+longres.FN)
+            longres['FPR'] = longres.FP/(longres.FP+longres.TN)
+            longres['FDR'] = longres.FP/(longres.FP+longres.TP)
+            longres['FWER'] = [1 if x>0 else 0 for x in longres.FP]
+        longres['simulation'] = p+1
+        longres['condition'] = c+1
         results.append(longres)
 
 results = pd.concat(results,ignore_index=False)

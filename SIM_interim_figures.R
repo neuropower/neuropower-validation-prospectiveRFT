@@ -15,12 +15,13 @@ library(gridExtra)
 
 
 HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation/"
-RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/interim/"
+RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/"
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
 cons_list <- paste("EFFECT:",effs," - ","ACTIVATION SIZE:",acts,sep="")
 methods_n <- c("Uncorrected","Benjamini-Hochberg","Bonferroni","Random Field Theory")
+u <- 3
 
 ## FUNCTIONS
 
@@ -32,13 +33,13 @@ g_legend<-function(a.gplot){
 
 # read in results
 
-res.nonad <- read.table(paste(RESDIR,"tables/results_nonadaptive.txt",sep=""))
-pre.nonad <- read.table(paste(RESDIR,"tables/power_predicted_nonadaptive.txt",sep=""))
-obs.nonad <- read.table(paste(RESDIR,"tables/power_observed_nonadaptive.txt",sep=""))
-res.ad <- read.table(paste(RESDIR,"tables/results_adaptive.txt",sep=""))
-pre.ad <- read.table(paste(RESDIR,"tables/power_predicted_adaptive.txt",sep=""))
-obs.ad <- read.table(paste(RESDIR,"tables/power_observed_adaptive.txt",sep=""))
-res.bias <- read.table(paste(RESDIR,"tables/results_bias.txt",sep=""))
+res.nonad <- read.table(paste(RESDIR,"tables/estimation_sim_nonadaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
+pre.nonad <- read.table(paste(RESDIR,"tables/powpred_sim_nonadaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
+obs.nonad <- read.table(paste(RESDIR,"tables/powtrue_sim_nonadaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
+res.ad <- read.table(paste(RESDIR,"tables/estimation_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
+pre.ad <- read.table(paste(RESDIR,"tables/powpred_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
+obs.ad <- read.table(paste(RESDIR,"tables/powtrue_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
+res.bias <- read.table(paste(RESDIR,"tables/results_bias.csv",sep=""),header=TRUE,sep=",")
 
 # take mean of power predictions over simulations
 
@@ -48,7 +49,7 @@ pre.ad.mn <- ddply(pre.ad,
                    TPR=mean(power)
                    )
 obs.ad.mn <- ddply(obs.ad,
-                   ~subs+condition+mcp,
+                   ~subjects+condition+mcp,
                    summarise,
                    TPR=mean(TPR),
                    FPR=mean(FPR),
@@ -63,7 +64,7 @@ pre.nonad.mn <- ddply(pre.nonad,
                    TPR=mean(power)
 )
 obs.nonad.mn <- ddply(obs.nonad,
-                   ~subs+condition+mcp,
+                   ~subjects+condition+mcp,
                    summarise,
                    TPR=mean(TPR),
                    FPR=mean(FPR),
@@ -99,6 +100,7 @@ Greys <- brewer.pal(9,"Greys")[c(3,5,7,9)]
 Reds <- brewer.pal(9,"Reds")[c(3,5,7,9)]
 cols <- c()
 for(i in 1:4){cols <- c(cols,c(Greens[i],Blues[i],Greys[i],Reds[i]))}
+cols <- c(Greens,Blues,Greys,Reds)
 transp <- 0.2
 cxp <- 0.3
 
@@ -175,7 +177,7 @@ dev.off()
 
 # parameters for text
 methname <- c("Uncorrected","False Discovery Rate","Bonferroni","Random Field Theory")
-methods <- c("UN","BH","BF","RFT")
+methods <- c("UN","BH","BF","RF")
 
 # color ramps for power and bias
 col.pow <- colorRampPalette(brewer.pal(9,"YlOrRd"))(100)
@@ -210,7 +212,7 @@ t2 <- levelplot(t(array(obs.ad.mn[obs.ad.mn$mcp==method,]$TPR,dim=c(16,46))),
                 col.regions=col.pow,
                 xlab="",
                 par.settings=list(layout.heights=list(top.padding=-3)),
-                ylab=methname[method],
+                ylab=method,
                 aspect="fill")
 t3 <- levelplot(t(array(bias.ad.mn[bias.ad.mn$mcp==method,]$bias,dim=c(16,46))),
                 scales=level.scales2,
@@ -230,7 +232,7 @@ pdf(paste(RESDIR,"figures/powerpredictions.pdf",sep=""),width=15,height=17)
 grid.arrange(plots[["UN"]][[1]],plots[["UN"]][[2]],
              plots[["BH"]][[1]],plots[["BH"]][[2]],
              plots[["BF"]][[1]],plots[["BF"]][[2]],             
-             plots[["RFT"]][[1]],plots[["RFT"]][[2]],
+             plots[["RF"]][[1]],plots[["RF"]][[2]],
              nrow=4,widths=c(7.7,4))
 dev.off()
 

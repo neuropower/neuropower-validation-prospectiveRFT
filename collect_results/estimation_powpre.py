@@ -37,8 +37,9 @@ for p in range(sims):
         res['subjects']=range(pilot_sub,final_sub)
         longres = pd.melt(res,id_vars=['subjects'],value_vars=['BF','UN','BH','RFT'])
         longres.columns = ['subjects','mcp','power']
-        longres['simulation'] = p
-        longres['condition'] = c
+        longres.mcp = [x if not x=="RFT" else "RF" for x in longres.mcp]
+        longres['simulation'] = p+1
+        longres['condition'] = c+1
         results.append(longres)
 
 results = pd.concat(results)
