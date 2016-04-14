@@ -39,7 +39,7 @@ obs.nonad <- read.table(paste(RESDIR,"tables/powtrue_sim_nonadaptive_u",u,".csv"
 res.ad <- read.table(paste(RESDIR,"tables/estimation_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
 pre.ad <- read.table(paste(RESDIR,"tables/powpred_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
 obs.ad <- read.table(paste(RESDIR,"tables/powtrue_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-res.bias <- read.table(paste(RESDIR,"tables/results_bias.csv",sep=""),header=TRUE,sep=",")
+#res.bias <- read.table(paste(RESDIR,"tables/results_bias.csv",sep=""),header=TRUE,sep=",")
 
 # take mean of power predictions over simulations
 
@@ -73,19 +73,19 @@ obs.nonad.mn <- ddply(obs.nonad,
 )
 obs.nonad.mn$condition <- factor(obs.nonad.mn$condition)
 
-res.bias.mn <- ddply(res.bias,
-                     ~condition+effect+width+method+correction,
-                     summarise,
-                     SS = mean(SS),
-                     TPR=mean(TPR),
-                     FPR=mean(FPR),
-                     FDR=mean(FDR),
-                     FWER=mean(FWER))
+# res.bias.mn <- ddply(res.bias,
+#                      ~condition+effect+width+method+correction,
+#                      summarise,
+#                      SS = mean(SS),
+#                      TPR=mean(TPR),
+#                      FPR=mean(FPR),
+#                      FDR=mean(FDR),
+#                      FWER=mean(FWER))
 bias.ad.mn <- pre.ad.mn[,1:3]
 bias.ad.mn$bias <- pre.ad.mn$TPR - obs.ad.mn$TPR
-res.bias.mn$correction <- factor(res.bias.mn$correction)
-res.bias.mn$effect <- factor(res.bias.mn$effect)
-res.bias.mn$width <- factor(res.bias.mn$width)
+# res.bias.mn$correction <- factor(res.bias.mn$correction)
+# res.bias.mn$effect <- factor(res.bias.mn$effect)
+# res.bias.mn$width <- factor(res.bias.mn$width)
 
 
 
@@ -244,14 +244,14 @@ dev.off()
 
 p <- list()
 p[[1]] <- p[[2]] <- p[[3]] <- p[[4]] <- list()
-p[[1]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="UN",],aes(x=subs,y=FPR,group=condition,colour=condition))
-p[[1]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="UN",],aes(x=subs,y=FPR,group=condition,colour=condition))
-p[[2]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="BH",],aes(x=subs,y=FDR,group=condition,colour=condition))
-p[[2]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="BH",],aes(x=subs,y=FDR,group=condition,colour=condition))
-p[[3]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="BF",],aes(x=subs,y=FWER,group=condition,colour=condition))
-p[[3]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="BF",],aes(x=subs,y=FWER,group=condition,colour=condition))
-p[[4]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="RFT",],aes(x=subs,y=FWER,group=condition,colour=condition))
-p[[4]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="RFT",],aes(x=subs,y=FWER,group=condition,colour=condition))
+p[[1]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="UN",],aes(x=subjects,y=FPR,group=condition,colour=condition))
+p[[1]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="UN",],aes(x=subjects,y=FPR,group=condition,colour=condition))
+p[[2]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="BH",],aes(x=subjects,y=FDR,group=condition,colour=condition))
+p[[2]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="BH",],aes(x=subjects,y=FDR,group=condition,colour=condition))
+p[[3]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="BF",],aes(x=subjects,y=FWER,group=condition,colour=condition))
+p[[3]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="BF",],aes(x=subjects,y=FWER,group=condition,colour=condition))
+p[[4]][[1]] <- ggplot(obs.ad.mn[obs.ad.mn$mcp=="RF",],aes(x=subjects,y=FWER,group=condition,colour=condition))
+p[[4]][[2]] <- ggplot(obs.nonad.mn[obs.nonad.mn$mcp=="RF",],aes(x=subjects,y=FWER,group=condition,colour=condition))
 
 # create figures
 
@@ -326,57 +326,68 @@ grid.arrange(
 )
 dev.off()
 
-########################
-## BIAS WHEN ADAPTIVE ##
-########################
+###########################
+## BIAS WHEN NONADAPTIVE ##
+###########################
 
-#False positive rate
+mcps <- c("UN","BH","BF","RF")
+method_n <- c("Uncorrected","Benjamini-Hochberg","Bonferroni","Random Field Theory")
 
-p <- list()
-p[[1]] <- ggplot(res.bias.mn[res.bias.mn$method=="UN",],aes(x=width,y=FPR,group=interaction(correction,effect),linetype=correction,colour=effect))
-p[[2]] <- ggplot(res.bias.mn[res.bias.mn$method=="BH",],aes(x=width,y=FPR,group=interaction(correction,effect),linetype=correction,colour=effect))
-p[[3]] <- ggplot(res.bias.mn[res.bias.mn$method=="BF",],aes(x=width,y=FPR,group=interaction(correction,effect),linetype=correction,colour=effect))
-p[[4]] <- ggplot(res.bias.mn[res.bias.mn$method=="RFT",],aes(x=width,y=FPR,group=interaction(correction,effect),linetype=correction,colour=effect))
+# compute minimal sample size
 
-control <- c("FPR","FDR","FWER","FWER")
-method <- c("Uncorrected","Benjamini-Hochberg","Bonferroni","Random Field Theory")
 
-fig <- list()
-for(m in 1:4){
-fig[[m]] <- p[[m]] +
-  geom_point(size=3) + 
-  geom_line() +
-  geom_hline(aes(yintercept=0.05)) +
-  theme(panel.background = element_rect(fill = NA, colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none"
-        ) +
-  scale_colour_manual(labels=rep(c(0.5,1,1.5,2),4), 
-                      values = cols[9:12]) +
-    ylim(c(0,0.06)) +
-  labs(x="Percentage of brain activated",
-       y = control[m],
-       title=method[m])
+pre.ad.min <- pre.ad[pre.ad$power>0.8,]
+minss <- ddply(pre.ad.min,
+               ~simulation+condition+mcp,
+               summarize,
+               SS=min(subjects)
+)
+
+
+results <- data.frame()
+for (l in 1:dim(minss)[1]){
+  if(l%%100==0){print(l)}
+  ind <- which(obs.ad$subjects==minss$SS[l] & obs.ad$condition==minss$condition[l] & obs.ad$simulation==minss$simulation[l] & obs.ad$mcp==minss$mcp[l])
+  res <- unlist(obs.ad[ind,])
+  results <- rbind(results,res)
 }
 
-legend <- g_legend(p[[1]] + geom_point(size=3) + geom_line() + theme(legend.key = element_rect(fill = NA, colour = NA)) + scale_colour_manual(labels=rep(c(0.5,1,1.5,2),4), 
-                                         values = cols[9:12]) )
+k <- 0
+for(c in 1:16){
+  for(sim in 1:max(pre.ad$simulation)){
+    for(m in 1)
+    k <- k+1
+    SS.pre <- minss$[minss$simulation==sim & minss$condition==c]
+    SS.p
+    k <- k+1
+    PRE <- pre.ad[pre.ad.mn$condition==c & pre.ad.mn$mcp==mcps[m],]
+    SS.pre[k] <- (15:60)[min(which($TPR>0.8))]
+    OBS <- obs.ad.mn[obs.ad.mn$condition==c & pre.ad.mn$mcp==mcps[m],]
+    SS.obs[k] <- (15:60)[min(which(OBS$TPR>0.8))]
+    eff[k]<- effs[c]
+    act[k] <- acts[c]
+    condition[k] <- c
+    method[k] <- m
+  }
+}  
+
+results <- data.frame(SS.pre,SS.obs,eff,act,condition,method)
 
 
-pdf(paste(RESDIR,"figures/FPR_adaptive_with_and_without_correction.pdf",sep=""),width=15,height=17)
-grid.arrange(
-  arrangeGrob(fig[[1]],fig[[2]],fig[[3]],fig[[4]],ncol=2),
-  legend,
-  ncol=2,
-  widths=c(3/4,1/4))
-dev.off()
+
+pre.ad.mn <- ddply(pre.ad,
+                   ~subjects+condition+mcp,
+                   summarise,
+                   TPR=mean(power)
+)
+
+
 
 ######################################
 ## REQUIRED VS OBTAINED SAMPLE SIZE ##
 ######################################
 
-mcps <- c("UN","BH","BF","RFT")
+mcps <- c("UN","BH","BF","RF")
 method_n <- c("Uncorrected","Benjamini-Hochberg","Bonferroni","Random Field Theory")
 
 # compute minimal sample size

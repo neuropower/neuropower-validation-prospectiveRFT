@@ -62,8 +62,8 @@ powtrue.av <- apply(powtrue,c(2,3,4,5),mean,na.rm=TRUE)
 powpred3D <- array(NA,dim=c(16,20,4))
 powtrue3D <- array(NA,dim=c(16,20,4))
 k <- 0
-for(p in 1:4){
-  for(e in 1:4){
+for(e in 1:4){
+  for(p in 1:4){
     k <- k+1
     powpred3D[k,,] <- powpred.av[p,e,,]
     powtrue3D[k,,] <- powtrue.av[p,e,,]
