@@ -238,3 +238,166 @@ grid.arrange(plots[[1]][[1]],plots[[1]][[2]],
              plots[[4]][[1]],plots[[4]][[2]],
              nrow=4,widths=c(7.7,4))
 dev.off()
+
+
+##########################################
+## HOW LARGE SHOULD THE SAMPLE SIZE BE? ##
+##########################################
+
+nec <- data.frame(array(NA,dim=c((500*47*4),6)))
+names(nec) <- c("pars","con","sim","mcp","pred","true")
+k <- 0
+
+range <- 1:sims
+for (p in range){
+  print(p)
+  for(c in 1:47){
+    k <- k+1
+    rg <- ((k-1)*4+1):((k-1)*4+4)
+    nec$pars[rg] <- pars[c]
+    nec$con[rg] <- cons[c]
+    nec$sim[rg] <- s
+    nec$mcp[rg] <- c("UN","BF","RFT","BH")
+    
+    
+    prefile <- paste(RESDIR,"powpre_hcp_",p,"_contrast_",c-1,".csv",sep="")
+    if(file.exists(prefile)){
+      pre <- read.csv(prefile,na.strings=c("nan"),header=TRUE)
+      if(dim(pre)[2]==3){pre$BH=NA}
+      pre <- data.frame(pre$UN,pre$BF,pre$RFT,pre$BH)
+      ind <- data.frame(which(pre>0.7,arr.ind=TRUE))
+      if(nrow(ind) !=0){
+        nectab <- ddply(ind,~col,summarise,min=min(row))
+        necl <- c(ifelse(length(nectab$min[nectab$col==1])!=0,nectab$min[nectab$col==1],NA),
+                  ifelse(length(nectab$min[nectab$col==2])!=0,nectab$min[nectab$col==2],NA),
+                  ifelse(length(nectab$min[nectab$col==3])!=0,nectab$min[nectab$col==3],NA),                  
+                  ifelse(length(nectab$min[nectab$col==4])!=0,nectab$min[nectab$col==4],NA)
+        )
+        nec$pred[rg] <- (PILOT:61)[necl]       
+      }
+    }
+    
+    trufile <- paste(RESDIR,"powtru_hcp_",p,"_contrast_",c-1,".csv",sep="")
+    if(file.exists(trufile)){
+      tru <- read.csv(trufile,na.strings=c("nan"),header=TRUE)
+      if(dim(tru)[2]==3){tru$BH=NA}
+      tru <- data.frame(tru$UN,tru$BF,tru$RFT,tru$BH)
+      ind <- data.frame(which(tru>0.7,arr.ind=TRUE))
+      if(nrow(ind) !=0){
+        nectab <- ddply(ind,~col,summarise,min=min(row))
+        necl <- c(ifelse(length(nectab$min[nectab$col==1])!=0,nectab$min[nectab$col==1],NA),
+                  ifelse(length(nectab$min[nectab$col==2])!=0,nectab$min[nectab$col==2],NA),
+                  ifelse(length(nectab$min[nectab$col==3])!=0,nectab$min[nectab$col==3],NA),                  
+                  ifelse(length(nectab$min[nectab$col==4])!=0,nectab$min[nectab$col==4],NA)
+        )
+        nec$true[rg] <- (PILOT:61)[necl]       
+      }
+      
+    }
+  }
+}
+nec$con <- factor(nec$con)
+nec$pars <- factor(nec$pars)
+
+meanss <- ddply(nec,~pars+con+mcp,summarise,pred=mean(pred,na.rm=TRUE),true=mean(true,na.rm=TRUE))
+meanss <- meanss[1:188,]
+
+cols.f <- c(brewer.pal(10,"Paired")[seq(2,10,2)],brewer.pal(9,"Greys")[7],brewer.pal(11,"PiYG")[2])
+
+
+minmap <- 15
+maxmap <- 60
+subbias <- 5
+x <- c(minmap+subbias,minmap,minmap,   maxmap-subbias, maxmap,maxmap )
+y <- c(minmap   ,minmap,minmap+subbias,maxmap,    maxmap,maxmap-subbias )
+polygon5 <- data.frame(x,y)
+
+subbias <- 10
+x <- c(minmap+subbias,minmap,minmap,   maxmap-subbias, maxmap,maxmap )
+y <- c(minmap   ,minmap,minmap+subbias,maxmap,    maxmap,maxmap-subbias )
+polygon10 <- data.frame(x,y)
+
+
+
+p <- list()
+
+for(m in 1:4){
+  method <- c("BF","UN","RFT","BH")[m] 
+  p[[m]] <- ggplot() + 
+    geom_polygon(data=polygon10, mapping=aes(x=x, y=y),fill="gray95") +
+    geom_polygon(data=polygon5, mapping=aes(x=x, y=y),fill="gray90") +
+    geom_abline(colour="grey50") +
+    geom_jitter(data=nec[nec$mcp==method,],
+                aes(x=true,
+                    y=pred,
+                    group=interaction(pars,con),
+                    colour=pars,
+                    shape=con
+                ),
+                size=1,
+                alpha=1/50
+    ) +
+    geom_jitter(data=meanss[meanss$mcp==method,],
+                aes(x=true,
+                    y=pred,
+                    group=interaction(pars,con),
+                    colour=pars,
+                    shape=con
+                ),
+                size=3,
+                alpha=1,
+    ) +
+    theme(panel.background = element_rect(fill = NA, colour = 'grey'),
+          legend.position="none",        
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()
+    ) +
+    scale_colour_manual(values=cols.f) +
+    scale_shape_manual(values=1:100) +
+    xlim(c(15,maxmap))+  
+    ylim(c(15,maxmap))+
+    #coord_map(xlim = c(15, 50),ylim = c(15, 50)) + 
+    labs(x="True required sample size",
+         y = "Predicted required sample size",
+         title=method
+    )
+}
+
+
+legcol <- c()
+legsh <- c()
+for(i in 1:47){
+  legcol[i] <- cols.f[pars[i]]
+  legsh[i] <- (1:100)[cons[i]]
+}
+
+dat <- data.frame(a=1,b=confull,c=confull,legcol=factor(legcol),legsh=factor(legsh))
+dat$b <- dat$c <- factor(dat$b,levels=dat$b[order(1:47)])
+
+leg <- ggplotGrob(  
+ggplot(dat,aes(a,b,group=c,colour=c,shape=c)) + 
+  geom_point() +
+  scale_colour_manual(values=legcol,labels=confull) +
+  scale_shape_manual(values=legsh) +
+  theme(panel.background = element_rect(fill = NA, colour = "white"),
+        legend.position="none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank()
+        ) +
+  labs(x="",y="")
+)
+
+
+pdf(paste(FIGDIR,"FIG_HCP_sscalc.pdf",sep=""),width=10,height=9)
+
+grid.arrange(
+  arrangeGrob(p[[1]],p[[3]],nrow=2),
+  arrangeGrob(p[[2]],p[[4]],nrow=2),
+  arrangeGrob(leg),
+  ncol=3,
+  widths = c(2/6,2/6,2/6)
+)
+dev.off()
+

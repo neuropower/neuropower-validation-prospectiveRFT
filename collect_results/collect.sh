@@ -27,3 +27,5 @@ python estimation_powtrue.py 15 61 250 16 'sim' 'adaptive' 'u2' $BASEFOLDER $OUT
 python estimation_powtrue.py 15 61 250 16 'sim' 'adaptive' 'u3' $BASEFOLDER $OUTDIR &
 python estimation_powtrue.py 15 61 250 16 'sim' 'nonadaptive' 'u2' $BASEFOLDER $OUTDIR &
 python estimation_powtrue.py 15 61 250 16 'sim' 'nonadaptive' 'u3' $BASEFOLDER $OUTDIR &
+
+python estimation_conditional.py 15 61 50 16 'sim' 'nonadaptive' 'u3' $BASEFOLDER $OUTDIR &

@@ -8,8 +8,10 @@ library(colorRamps)
 library(gplots)
 library(gridExtra)
 
+PILOT <- 15
+subrange <- 60-PILOT
 
-RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_peak_SIM/power_peak_SIM_10/"
+RESDIR <- paste("/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_peak_SIM/SIM_",PILOT,"/",sep="")
 HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation/"
 FIGDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Paper/Studie_4_v1.4/Figures/"
 
@@ -32,8 +34,8 @@ for (p in range){
 
 
 # read in results: power estimation
-powpred <- array(NA,dim=c(500,4,4,20,4)) 
-powtrue <- array(NA,dim=c(500,4,4,20,4)) 
+powpred <- array(NA,dim=c(500,4,4,subrange,4)) 
+powtrue <- array(NA,dim=c(500,4,4,subrange,4)) 
 
 for(s in range){
   print(s)
@@ -44,10 +46,14 @@ for(s in range){
       
       pred <- read.table(paste(RESDIR,"powpre_sim_",s,"_w_",per,"_e_",eff,".csv",sep=""),sep=",",dec=".",header=TRUE)
       if(is.null(pred$BH)){pred$BH <- 0}
-      pred <- data.frame(pred$BF,pred$UN,pred$RFT,pred$BH)   
+       pred <- data.frame(pred$BF,pred$UN,pred$RFT,pred$BH)   
       powpred[s,p,e,,] <-  data.matrix(pred)
       
       true <- read.table(paste(RESDIR,"powtru_sim_",s,"_w_",per,"_e_",eff,".csv",sep=""),sep=",",dec=".",header=TRUE)
+      true$RFT <- true$RFT_TP/(true$RFT_TP+true$RFT_FN)
+      true$BH <- true$BH_TP/(true$BH_TP+true$BH_FN)
+      true$BF <- true$BF_TP/(true$BF_TP+true$BF_FN)      
+      true$UN <- true$UN_TP/(true$UN_TP+true$UN_FN)
       true <- data.frame(true$BF,true$UN,true$RFT,true$BH)
       true[true=="NaN"] <- 0
       powtrue[s,p,e,,] <-  data.matrix(true)
@@ -59,8 +65,8 @@ for(s in range){
 powpred.av <- apply(powpred,c(2,3,4,5),mean,na.rm=TRUE)
 powtrue.av <- apply(powtrue,c(2,3,4,5),mean,na.rm=TRUE)
 
-powpred3D <- array(NA,dim=c(16,20,4))
-powtrue3D <- array(NA,dim=c(16,20,4))
+powpred3D <- array(NA,dim=c(16,subrange,4))
+powtrue3D <- array(NA,dim=c(16,subrange,4))
 k <- 0
 for(e in 1:4){
   for(p in 1:4){
@@ -249,4 +255,154 @@ for(i in 1:4){text(1.9,y[i*4],c(0.5,1,1.5,2)[i])}
 dev.off()
 
 
+##########################################
+## HOW LARGE SHOULD THE SAMPLE SIZE BE? ##
+##########################################
 
+PILOT <- 15
+
+  nec <- data.frame(array(NA,dim=c(32000,6)))
+  names(nec) <- c("eff","ac","sim","mcp","pred","true")
+  k <- 0
+  for(s in range){
+    print(s)
+    for(p in 1:4){
+      for(e in 1:4){
+        per <- c(2,4,6,8)[p]
+        eff <- c("half","one","onehalf","two")[e]
+        
+        k <- k+1
+        rg <- ((k-1)*4+1):((k-1)*4+4)
+        nec$eff[rg] <- e
+        nec$ac[rg] <- p
+        nec$sim[rg] <- s
+        nec$mcp[rg] <- c("BF","UN","RFT","BH")
+        
+        pred <- read.table(paste(RESDIR,"powpre_sim_",s,"_w_",per,"_e_",eff,".csv",sep=""),sep=",",dec=".",header=TRUE)
+        if(is.null(pred$BH)){pred$BH <- 0}
+        pred <- data.frame(pred$BF,pred$UN,pred$RFT,pred$BH)           
+        ind <- data.frame(which(pred>0.7,arr.ind=TRUE))
+        if(nrow(ind) !=0){
+        nectab <- ddply(ind,~col,summarise,min=min(row))
+        necl <- c(ifelse(length(nectab$min[nectab$col==1])!=0,nectab$min[nectab$col==1],NA),
+                  ifelse(length(nectab$min[nectab$col==2])!=0,nectab$min[nectab$col==2],NA),
+                  ifelse(length(nectab$min[nectab$col==3])!=0,nectab$min[nectab$col==3],NA),                  
+                  ifelse(length(nectab$min[nectab$col==4])!=0,nectab$min[nectab$col==4],NA)
+        )
+        nec$pred[rg] <- (PILOT:60)[necl]
+        
+        }
+        
+        true <- read.table(paste(RESDIR,"powtru_sim_",s,"_w_",per,"_e_",eff,".csv",sep=""),sep=",",dec=".",header=TRUE)
+        RFT <- true$RFT_TP/(true$RFT_TP+true$RFT_FN)
+        BH <- true$BH_TP/(true$BH_TP+true$BH_FN)
+        BF <- true$BF_TP/(true$BF_TP+true$BF_FN)      
+        UN <- true$UN_TP/(true$UN_TP+true$UN_FN)
+        true <- data.frame(BF,UN,RFT,BH)
+        ind <- data.frame(which(true>0.7,arr.ind=TRUE))
+        if(nrow(ind) !=0){
+          nectab <- ddply(ind,~col,summarise,min=min(row))
+          necl <- c(ifelse(length(nectab$min[nectab$col==1])!=0,nectab$min[nectab$col==1],NA),
+                    ifelse(length(nectab$min[nectab$col==2])!=0,nectab$min[nectab$col==2],NA),
+                    ifelse(length(nectab$min[nectab$col==3])!=0,nectab$min[nectab$col==3],NA),                  
+                    ifelse(length(nectab$min[nectab$col==4])!=0,nectab$min[nectab$col==4],NA)
+          )
+          
+          nec$true[rg] <- (PILOT:60)[necl]
+        }
+        
+      }
+    }
+  }
+  
+}
+
+
+meanss <- ddply(nec,~ac+eff+mcp,summarise,pred=mean(pred),true=mean(true))
+meanss <- meanss[1:64,]
+
+koeleurtjes <- alpha(cols.d,transp)
+
+nec$eff <- factor(nec$eff)
+nec$ac <- factor(nec$ac)
+
+minmap <- 15
+maxmap <- 60
+subbias <- 5
+x <- c(minmap+subbias,minmap,minmap,   maxmap-subbias, maxmap,maxmap )
+y <- c(minmap   ,minmap,minmap+subbias,maxmap,    maxmap,maxmap-subbias )
+polygon <- data.frame(x,y)
+
+
+p <- list()
+
+for(m in 1:4){
+  method <- c("BF","UN","RFT","BH")[m] 
+ p[[m]] <- ggplot() + 
+  geom_polygon(data=polygon, mapping=aes(x=x, y=y),fill="gray90") +
+  geom_abline(colour="grey50") +
+  geom_jitter(data=nec[nec$mcp==method,],
+             aes(x=true,
+                 y=pred,
+                 group=interaction(ac,eff),
+                 colour=interaction(ac,eff)
+             ),
+             size=3,
+             alpha=1/50
+             ) +
+  geom_jitter(data=meanss[meanss$mcp==method,],
+             aes(x=true,
+                 y=pred,
+                 group=interaction(ac,eff),
+                 colour=interaction(ac,eff)
+             ),
+             size=5,
+             alpha=1,
+             shape=18
+  ) +
+  theme(panel.background = element_rect(fill = NA, colour = 'grey'),
+        legend.position="none",        
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()
+  ) +
+  scale_colour_manual(values=cols.d) +
+  xlim(c(15,60))+  
+  ylim(c(15,60))+
+  #coord_map(xlim = c(15, 50),ylim = c(15, 50)) + 
+ labs(x="True required sample size",
+       y = "Predicted required sample size",
+       title=method
+       )
+}
+
+
+cons_list <- paste("EFFECT:",effs," - ","ACTIVATION SIZE:",acts,sep="")
+dat <- data.frame(a = factor(acts), b = factor(effs),c=cons_list)
+
+empty <- ggplot(data.frame()) + geom_point() + xlim(0, 10) + ylim(0, 100) + theme_minimal() + theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), axis.ticks = element_blank(),axis.text.x=element_blank(),axis.text.y=element_blank())
+
+
+leg <- ggplotGrob(
+  ggplot(unique(subset(dat, select = a:b)), 
+         aes(a, b, colour=cons_list)) + 
+    geom_point(size=10, shape=15) +
+    theme(panel.background = element_rect(fill = NA, colour = "white"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.position = "none",
+          axis.ticks = element_blank()) +
+    scale_colour_manual(labels=rep("",16), 
+                        values = cols) +
+    labs(x = "percentage active",
+         y = "effect size")
+)
+
+pdf(paste(FIGDIR,"FIG_SIM_sscalc.pdf",sep=""),width=10,height=9)
+
+grid.arrange(
+    arrangeGrob(p[[1]],p[[3]],nrow=2),
+    arrangeGrob(p[[2]],p[[4]],nrow=2),
+  arrangeGrob(empty,leg,empty,nrow=3,heights=c(2/5,1/5,2/5)),
+  ncol=3,
+  widths = c(2/5,2/5,1/5))
+dev.off()
