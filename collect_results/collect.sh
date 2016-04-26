@@ -33,5 +33,5 @@ for l in $(seq 1 5)
     steps=50
     simstart=$((($l-1)*$steps+1))
     simstop=$((simstart+$steps-1))
-    python estimation_conditional.py 15 61 $simstart $simstop 16 'sim' 'nonadaptive' 'u3' $BASEFOLDER $OUTDIR
+    python estimation_conditional.py 15 61 $simstart $simstop 16 'sim' 'nonadaptive' 'u3' $BASEFOLDER $OUTDIR &
   done
