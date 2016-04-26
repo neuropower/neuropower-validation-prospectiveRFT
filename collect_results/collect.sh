@@ -28,4 +28,10 @@ python estimation_powtrue.py 15 61 250 16 'sim' 'adaptive' 'u3' $BASEFOLDER $OUT
 python estimation_powtrue.py 15 61 250 16 'sim' 'nonadaptive' 'u2' $BASEFOLDER $OUTDIR &
 python estimation_powtrue.py 15 61 250 16 'sim' 'nonadaptive' 'u3' $BASEFOLDER $OUTDIR &
 
-python estimation_conditional.py 15 61 50 16 'sim' 'nonadaptive' 'u3' $BASEFOLDER $OUTDIR &
+for l in $(seq 1 5)
+  do
+    steps=50
+    simstart=$((($l-1)*$steps+1))
+    simstop=$((simstart+$steps-1))
+    python estimation_conditional.py 15 61 $simstart $simstop 16 'sim' 'nonadaptive' 'u3' $BASEFOLDER $OUTDIR
+  done

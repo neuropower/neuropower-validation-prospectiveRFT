@@ -4,6 +4,9 @@ scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/* jdurnez@
 scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Functions/* jdurnez@sherlock.stanford.edu:/home/jdurnez/power_peak/
 scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/SIM_interim_biascorr.py jdurnez@sherlock.stanford.edu:/home/jdurnez/power_peak/
 
+scp ~/Documents/Onderzoek/Studie_meta_analysis/EffectSizeEstimation/* jdurnez@sherlock.stanford.edu:/home/jdurnez/
+scp jdurnez@sherlock.stanford.edu:/home/jdurnez/clusterstability* ~/Downloads/
+scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/clusterstab/minss.nii.gz ~/Downloads/
 # from sherlock to home
 
 scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/power.tar.gz ~/Downloads/
