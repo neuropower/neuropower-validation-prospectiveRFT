@@ -36,7 +36,7 @@ for p in range(sims):
                 res['BH']='nan'
         res['subjects']=range(pilot_sub,final_sub)
         if modality == 'hcp':
-            longres = pd.melt(res,id_vars=['subjects'],value_vars=['BF','UN','BH','RF'])
+            longres = pd.melt(res,id_vars=['subjects'],value_vars=['BF','UN','BH','RFT'])
             longres.columns = ['subjects','mcp','TPR']
         if modality == 'sim':
             resverylong = pd.melt(res,id_vars=['subjects'],value_vars=names)

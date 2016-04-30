@@ -1,18 +1,19 @@
 # from home to sherlock
 
-scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/* jdurnez@sherlock.stanford.edu:/home/jdurnez/power_peak/
+scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/collect_results/powtrue_hcp_adaptive_u2.csv jdurnez@sherlock.stanford.edu:/home/jdurnez/power_peak/
 scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Functions/* jdurnez@sherlock.stanford.edu:/home/jdurnez/power_peak/
-scp ~/Documents/Onderzoek/Studie_4_propow/ProspectivePower-Validation/SIM_interim_biascorr.py jdurnez@sherlock.stanford.edu:/home/jdurnez/power_peak/
+scp ~/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/tables/* jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/interim_results/
 
 scp ~/Documents/Onderzoek/Studie_meta_analysis/EffectSizeEstimation/* jdurnez@sherlock.stanford.edu:/home/jdurnez/
 scp jdurnez@sherlock.stanford.edu:/home/jdurnez/clusterstability* ~/Downloads/
-scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/clusterstab/minss.nii.gz ~/Downloads/
+scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/interim_results/cond_summ/* ~/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/tables/
 # from sherlock to home
 
 scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/power.tar.gz ~/Downloads/
 scp jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/interim.tar.gz ~/Downloads/
 
 srun -p russpold --qos=russpold --time=10:00:00 --x11 -n1 --pty bash
+srun -p russpold --qos=russpold --time=10:00:00 -N 1 -n 52 --x11 -n1 --pty bash
 srun --time=4:00:00 --x11 --pty bash
 
 i=1
@@ -26,10 +27,10 @@ do
   sbatch SIM.sbatch
 done
 
-for i in {1..20}
+for i in {1..125}
 do
   export i
-  sbatch SIM_interim_biascorr.sbatch
+  sbatch conditional.sbatch
 done
 
 for i in {260..500}

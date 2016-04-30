@@ -19,8 +19,8 @@ outfolder = sys.argv[10]
 # final_sub = 60
 # simstart = 3
 # simstop = 4
-# conditions = 16
-# modality = 'sim'
+# conditions = 47
+# modality = 'hcp'
 # adaptive = 'adaptive'
 # threshold = 'u2'
 # basefolder = "/Users/Joke/Documents/Onderzoek/Studie_4_propow/InterimPower_Results"
@@ -40,6 +40,7 @@ pow = 0.5
 results = []
 for p in np.arange(simstart,simstop+1):
     for q in range(conditions):
+        print(q)
         for m in ['BF','UN','RF','BH']:
             m1 = pre['mcp']==m
             m2 = pre['condition']==q+1
@@ -49,7 +50,7 @@ for p in np.arange(simstart,simstop+1):
                 continue
             index = np.min(np.where([all(tup) for tup in zip(m1,m2,m3,m4)]))
             sub_nec = pre.loc[index].subjects
-            m1 = true['mcp']==m
+            m1 = true['mcp']==(m if not m == "RF" else "RFT")
             m2 = true['condition']==q+1
             m3 = true['simulation']==p
             m4 = true['TPR']>pow
@@ -69,10 +70,8 @@ for p in np.arange(simstart,simstop+1):
             "sim":int(trueres.simulation),
             "condition":int(trueres.condition),
             "TPR":float(trueres.TPR),
-            "FPR":float(trueres.FPR),
-            "FDR":float(trueres.FDR),
-            "FWER":float(trueres.FWER)
             }
             results.append(result)
+
 results = pd.DataFrame(results)
 results.to_csv(outfile)
