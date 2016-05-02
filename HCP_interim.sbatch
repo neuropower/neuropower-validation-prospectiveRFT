@@ -1,19 +1,28 @@
 #!/bin/bash
 
-#SBATCH --job-name=HCP_interim
-#SBATCH --output=out/out.HCP
-#SBATCH --error=error/err.HCP
+#SBATCH --job-name=HCP.interim
+#SBATCH --output=error/out.HCP.interim
+#SBATCH --error=error/err.HCP.interim
 #SBATCH --time=30:00:00
 #SBATCH --nodes=1
 #SBATCH --partition=russpold
 #SBATCH --qos=russpold
 
-TMPDIR=$LOCAL_SCRATCH
-RESDIRAD="/scratch/users/jdurnez/interim/hcp_adaptive/u2/"
-RESDIRNAD="/scratch/users/jdurnez/interim/hcp_nonadaptive/u2/"
-HOMEDIR="/home/jdurnez/power_peak/"
-DATADIR="/scratch/PI/russpold/data/HCP/"
+. ./config.sh
+
+PILOT=15
+FINAL=65
+U="2.3"
+
+SCRIPTDIR=$(echo $HOMEDIR\PythonScripts/)
+FILEDIR=$(echo $HOMEDIR\HcpFiles/)
+
+OUTDIR_A=$(echo $RESDIR\HCP_adaptive_$PILOT\_$U/)
+OUTDIR_P=$(echo $RESDIR\HCP_predictive_$PILOT\_$U/)
+
+if [ ! -d "$OUTDIR_A" ]; then mkdir $OUTDIR_A; fi
+if [ ! -d "$OUTDIR_P" ]; then mkdir $OUTDIR_P; fi
 
 SIM=$i
-python $HOMEDIR/HCP.py "2.3" "15" "80" $SIM $HOMEDIR $DATADIR $TMPDIR $RESDIRNAD
-python $HOMEDIR/HCP_interim.py "2.3" "15" "80" $SIM $HOMEDIR $DATADIR $TMPDIR $RESDIRAD
+python $SCRIPTDIR/HCP.py $U $PILOT $FINAL $SIM $FILEDIR $HCPDIR $TMPDIR $OUTDIR_A "adaptive"
+python $SCRIPTDIR/HCP.py $U $PILOT $FINAL $SIM $FILEDIR $HCPDIR $TMPDIR $OUTDIR_P "predictive"

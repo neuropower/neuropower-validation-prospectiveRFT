@@ -5,19 +5,8 @@
 from __future__ import division
 import os
 import sys
-sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
-clthres = float(sys.argv[1])
-pilot_sub = int(sys.argv[2])
-final_sub = int(sys.argv[3])
-seed = int(sys.argv[4])
-HOMEDIR = sys.argv[5]
-DATADIR = sys.argv[6]
-TMPDIR = sys.argv[7]
-os.chdir(HOMEDIR)
-
 import numpy as np
 import scipy
-from scipy.stats import norm, t
 import math
 import nibabel as nib
 import shutil
@@ -30,56 +19,77 @@ import cluster
 import peakdistribution
 import simul_multisubject_fmri_dataset
 import model
+import uuid
 
-TEMPDIR = os.path.join(TMPDIR,"temporary_"+str(seed)+"/")
-resfile = os.path.join(DATADIR,"estimation_sim_"+str(seed)+".csv")
+sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
+exc = float(sys.argv[1])
+pilot_sub = int(sys.argv[2])
+final_sub = int(sys.argv[3])
+seed = int(sys.argv[4])
+FILEDIR = sys.argv[5]
+RESDIR = sys.argv[6]
+TMPDIR = sys.argv[7]
+ADAPTIVE = sys.argv[8]
+
+print(FILEDIR)
+
+TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
+os.mkdir(TEMPDIR)
+os.chdir(TEMPDIR)
+
+resfile = os.path.join(RESDIR,"estimation_sim_"+str(seed)+".csv")
 if os.path.isfile(resfile):
     os.remove(resfile)
 
 for c in range(16):
 
-    os.mkdir(TEMPDIR)
-    os.chdir(TEMPDIR)
-
-    #######################
-    # simulate pilot data #
-    #######################
+    #####################
+    # simulate all data #
+    #####################
     # conditions
     effectsizes = np.repeat([0.5,1,1.5,2],4)
     widths = [2,4,6,8]*4
     es_names = np.repeat(["half","one","onehalf","two"],4)
     wd_names = [2,4,6,8]*4
     #parameters
-    exc = clthres
     smooth_FWHM = 3
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
-    mask = nib.load(os.path.join(HOMEDIR,"SIM_mask.nii"))
+    mask = nib.load(os.path.join(FILEDIR,"SIM_mask.nii"))
     width = widths[c]
     effectsize = effectsizes[c]
-    # general total dataset
-    noise_pilot = simul_multisubject_fmri_dataset.surrogate_3d_dataset(n_subj=final_sub, mask=mask,
-                                 sk=smooth_sigma,noise_level=1.0,
-                                 width=5.0,out_text_file=None,
-                                 out_image_file=None, seed=seed)
-    signal = nib.load(os.path.join(HOMEDIR,"SIM_activation"+str(width)+".nii")).get_data()
-    signal = np.repeat(signal[:, :, :, np.newaxis], final_sub, axis=3)
+    #size of dataset
+    if ADAPTIVE == "adaptive":
+        total_sub = final_sub
+    elif ADAPTIVE == "predictive":
+        total_sub = final_sub+pilot_sub
+    # generate noise + signal
+    noise = simul_multisubject_fmri_dataset.surrogate_3d_dataset(
+        n_subj=total_sub,
+        mask=mask,
+        sk=smooth_sigma,
+        noise_level=1.0,
+        width=5.0,
+        out_text_file=None,
+        out_image_file=None,
+        seed=seed)
+    signal = nib.load(os.path.join(FILEDIR,"SIM_activation"+str(width)+".nii")).get_data()
+    signal = np.repeat(signal[:, :, :, np.newaxis], total_sub, axis=3)
     low_values_indices = signal < 0.1
     signal[low_values_indices] = 0
     high_values_indices = signal > 0
     signal[high_values_indices] = effectsize
-    noise_pilot = noise_pilot.transpose((1,2,3,0))
+    noise = noise.transpose((1,2,3,0))
     activation = signal[:,:,:,1]
     img=nib.Nifti1Image(activation,np.eye(4))
     img.to_filename("activation.nii.gz")
-    data = signal + noise_pilot
-    # select pilot data
+    data = signal + noise
     data_pilot = data[:,:,:,0:pilot_sub]
     img=nib.Nifti1Image(data_pilot,np.eye(4))
     img.to_filename("simulation.nii.gz")
     # perform second level OLS analysis on simulated data
     model.model(pilot_sub,TEMPDIR)
-    fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
+    fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(FILEDIR,'SIM_mask.nii'))
     os.popen(fslcmd).read()
 
     # extract peaks
@@ -95,7 +105,7 @@ for c in range(16):
     # compute P-values
 
     pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-    pvalues = [max(10**(-6),p) for p in pvalues]
+    pvalues = [max(10**(-6),t) for t in pvalues]
     peaks['pval'] = pvalues
 
     # estimate model
@@ -160,30 +170,24 @@ for c in range(16):
         os.chdir(TEMPDIR)
         new_subj=s
 
-        # select final data
-        data_pilot = data[:,:,:,0:s]
-        img=nib.Nifti1Image(data_pilot,np.eye(4))
-        img.to_filename("simulation.nii.gz")
+        if ADAPTIVE == "adaptive":
+            data_final = data[:,:,:,0:s]
+        elif ADAPTIVE == "predictive":
+            data_final = data[:,:,:,pilot_sub:pilot_sub+final_sub]
+
+        img=nib.Nifti1Image(data_final,np.eye(4))
+        img.to_filename(os.path.join("simulation.nii.gz"))
 
         # analyse data and extract peaks
         model.model(new_subj,TEMPDIR)
-        fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'SIM_mask.nii'))
+        fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(FILEDIR,'SIM_mask.nii'))
         os.popen(fslcmd).read()
 
-        SPM_B = nib.load("stats/cope1.nii.gz").get_data()
-        SPM_SE = nib.load("stats/varcope1.nii.gz").get_data()
-        #SPM_VAR = SPM_SE*s
-        #v = s/est_sd
-        #SPM_VAR_BC = SPM_VAR +pilot_sub/(pilot_sub-1)*1/v
-        #SPM_SE_BC = SPM_VAR_BC/s
-        #SPM_t = SPM_B/np.sqrt(SPM_SE_BC)
-        SPM_t = SPM_B/np.sqrt(SPM_SE)
-        p_values = t.cdf(-SPM_t, df = s-1)
-        SPM_z = -norm.ppf(p_values)
-        SPM = SPM_z[::-1,:,:]
+        SPM = nib.load("stats/zstat1.nii.gz").get_data()
+        SPM = SPM[::-1,:,:]
         peaks = cluster.cluster(SPM,exc)
         pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-        pvalues = [max(10**(-6),p) for p in pvalues]
+        pvalues = [max(10**(-6),t) for t in pvalues]
         peaks['pval'] = pvalues
 
         # compute true power for different procedures
@@ -226,14 +230,15 @@ for c in range(16):
 
     toCSV = power_predicted
     keys = toCSV[0].keys()
-    with open(os.path.join(DATADIR,'powpre_sim_'+str(seed)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
+    with open(os.path.join(RESDIR,'powpre_sim_'+str(seed)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)
 
     toCSV = power_true
     keys = toCSV[0].keys()
-    with open(os.path.join(DATADIR,'powtru_sim_'+str(seed)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
+    with open(os.path.join(RESDIR,'powtru_sim_'+str(seed)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)
+shutil.rmtree(TEMPDIR)

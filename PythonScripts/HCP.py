@@ -5,17 +5,6 @@
 from __future__ import division
 import os
 import sys
-sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
-clthres = float(sys.argv[1])
-pilot_sub = int(sys.argv[2])
-final_sub = int(sys.argv[3])
-seed = int(sys.argv[4])
-HOMEDIR = sys.argv[5]
-DATADIR = sys.argv[6]
-TMPDIR = sys.argv[7]
-RESDIR = sys.argv[8]
-os.chdir(HOMEDIR)
-
 import numpy as np
 import scipy
 import math
@@ -30,13 +19,26 @@ import cluster
 import peakdistribution
 import model
 import pandas
-os.chdir(TMPDIR)
+import uuid
+
+sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
+exc = float(sys.argv[1])
+pilot_sub = int(sys.argv[2])
+final_sub = int(sys.argv[3])
+seed = int(sys.argv[4])
+FILEDIR = sys.argv[5]
+DATADIR = sys.argv[6]
+TMPDIR = sys.argv[7]
+RESDIR = sys.argv[8]
+ADAPTIVE = sys.argv[9]
+
+TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
+os.mkdir(TEMPDIR)
+os.chdir(TEMPDIR)
 
 # parameters
 all_sub = 180
 true_sub = 100
-
-exc= clthres
 
 resfile = os.path.join(RESDIR,"estimation_hcp_"+str(seed)+".csv")
 if os.path.isfile(resfile):
@@ -44,26 +46,31 @@ if os.path.isfile(resfile):
 
 for c in range(47):
     # read mask, list with unique contrasts/paradigms for HCP, list of subject ID's
-    maskfile = os.path.join(HOMEDIR,'HCP_mask.nii.gz')
+    maskfile = os.path.join(FILEDIR,'HCP_mask.nii.gz')
     mask = nib.load(maskfile).get_data()
-    contrast = [line.rstrip('\n') for line in open(os.path.join(HOMEDIR,'HCP_contrasts.txt'))][c]
-    paradigm = [line.rstrip('\n') for line in open(os.path.join(HOMEDIR,'HCP_paradigms.txt'))][c]
-    subjects = [line.rstrip('\n') for line in open(os.path.join(HOMEDIR,'HCP_unrelated_subID.txt'))]
-    disks = [line.rstrip('\n') for line in open(os.path.join(HOMEDIR,'HCP_unrelated_disk.txt'))]
+    contrast = [line.rstrip('\n') for line in open(os.path.join(FILEDIR,'HCP_contrasts.txt'))][c]
+    paradigm = [line.rstrip('\n') for line in open(os.path.join(FILEDIR,'HCP_paradigms.txt'))][c]
+    subjects = [line.rstrip('\n') for line in open(os.path.join(FILEDIR,'HCP_unrelated_subID.txt'))]
+    disks = [line.rstrip('\n') for line in open(os.path.join(FILEDIR,'HCP_unrelated_disk.txt'))]
 
     # select subjects for analysis
     all_subs = np.arange(all_sub)
     np.random.seed(seed=seed)
     suborder = np.random.choice(all_subs,len(all_subs),replace=False)
-    pilot_subs = np.sort(suborder[0:pilot_sub])
-    final_subs = np.sort(suborder[0:final_sub])
-    true_subs = np.sort(suborder[final_sub:all_sub])
+    if ADAPTIVE == "adaptive":
+        pilot_subs = np.sort(suborder[0:pilot_sub])
+        final_subs = np.sort(suborder[0:final_sub])
+        true_subs = np.sort(suborder[final_sub:all_sub])
+    elif ADAPTIVE == "predictive":
+        pilot_subs = np.sort(suborder[0:pilot_sub])
+        final_subs = np.sort(suborder[pilot_sub:(final_sub+pilot_sub)])
+        true_subs = np.sort(suborder[(pilot_sub+final_sub):all_sub])
 
     ################################
     # select and analyze true data #
     ################################
 
-    TRUEDIR = os.path.join(TMPDIR,"analysis_true_"+str(seed)+"/")
+    TRUEDIR = os.path.join(TEMPDIR,"analysis_true_"+str(seed)+"/")
     os.mkdir(TRUEDIR)
     os.chdir(TRUEDIR)
 
@@ -75,7 +82,7 @@ for c in range(47):
     os.popen(cope_cmd).read()
 
     model.model(len(true_cope),TRUEDIR)
-    fslcmd = 'flameo --copefile=true_cope.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'HCP_mask.nii.gz'))
+    fslcmd = 'flameo --copefile=true_cope.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(FILEDIR,'HCP_mask.nii.gz'))
     os.popen(fslcmd).read()
 
     Res = np.sum(mask)/(5/2)**3
@@ -90,7 +97,7 @@ for c in range(47):
     # select and analyze pilot data #
     #################################
 
-    PILOTDIR = os.path.join(TMPDIR,"analysis_pilot_"+str(seed)+"/")
+    PILOTDIR = os.path.join(TEMPDIR,"analysis_pilot_"+str(seed)+"/")
     os.mkdir(PILOTDIR)
     os.chdir(PILOTDIR)
 
@@ -102,7 +109,7 @@ for c in range(47):
     os.popen(cope_cmd).read()
 
     model.model(len(pilot_cope),PILOTDIR)
-    fslcmd = 'flameo --copefile=cope.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'HCP_mask.nii.gz'))
+    fslcmd = 'flameo --copefile=cope.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(FILEDIR,'HCP_mask.nii.gz'))
     os.popen(fslcmd).read()
 
     SPM = nib.load("stats/zstat1.nii.gz").get_data()
@@ -226,7 +233,7 @@ for c in range(47):
     power_true = []
     for s in range(pilot_sub,final_sub):
         #analyze data
-        FINALDIR = os.path.join(TMPDIR,"analysis_final_"+str(seed)+"/")
+        FINALDIR = os.path.join(TEMPDIR,"analysis_final_"+str(seed)+"/")
         os.mkdir(FINALDIR)
         os.chdir(FINALDIR)
         final_cope = []
@@ -237,7 +244,7 @@ for c in range(47):
         os.popen(cope_cmd).read()
 
         model.model(len(final_cope),FINALDIR)
-        fslcmd = 'flameo --copefile=cope.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(HOMEDIR,'HCP_mask.nii.gz'))
+        fslcmd = 'flameo --copefile=cope.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(FILEDIR,'HCP_mask.nii.gz'))
         os.popen(fslcmd).read()
 
         SPM = nib.load("stats/zstat1.nii.gz").get_data()
@@ -284,3 +291,4 @@ for c in range(47):
         dict_writer.writerows(toCSV)
 
     shutil.rmtree(TRUEDIR)
+shutil.rmtree(TEMPDIR)
