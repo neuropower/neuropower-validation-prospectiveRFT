@@ -34,14 +34,15 @@ ADAPTIVE = sys.argv[8]
 print(FILEDIR)
 
 TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
-os.mkdir(TEMPDIR)
-os.chdir(TEMPDIR)
 
 resfile = os.path.join(RESDIR,"estimation_sim_"+str(seed)+".csv")
 if os.path.isfile(resfile):
     os.remove(resfile)
 
 for c in range(16):
+
+    os.mkdir(TEMPDIR)
+    os.chdir(TEMPDIR)
 
     #####################
     # simulate all data #
@@ -173,7 +174,7 @@ for c in range(16):
         if ADAPTIVE == "adaptive":
             data_final = data[:,:,:,0:s]
         elif ADAPTIVE == "predictive":
-            data_final = data[:,:,:,pilot_sub:pilot_sub+final_sub]
+            data_final = data[:,:,:,pilot_sub:pilot_sub+s]
 
         img=nib.Nifti1Image(data_final,np.eye(4))
         img.to_filename(os.path.join("simulation.nii.gz"))
@@ -241,4 +242,3 @@ for c in range(16):
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)
-shutil.rmtree(TEMPDIR)

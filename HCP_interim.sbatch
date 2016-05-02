@@ -3,7 +3,7 @@
 #SBATCH --job-name=HCP.interim
 #SBATCH --output=error/out.HCP.interim
 #SBATCH --error=error/err.HCP.interim
-#SBATCH --time=30:00:00
+#SBATCH --time=25:00:00
 #SBATCH --nodes=1
 #SBATCH --partition=russpold
 #SBATCH --qos=russpold

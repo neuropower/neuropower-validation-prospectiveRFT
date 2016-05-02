@@ -22,10 +22,10 @@ OUTDIR_P=$(echo $RESDIR\SIM_predictive_$PILOT\_$U/)
 if [ ! -d "$OUTDIR_A" ]; then mkdir $OUTDIR_A; fi
 if [ ! -d "$OUTDIR_P" ]; then mkdir $OUTDIR_P; fi
 
-#for j in $(seq 1 3);
-#do
-#SIM=$(((i-1)*3+j))
-SIM=$i
-python $SCRIPTDIR/SIM.py $U $PILOT $FINAL $SIM $FILEDIR $OUTDIR_P $TMPDIR "predictive"
-python $SCRIPTDIR/SIM.py $U $PILOT $FINAL $SIM $FILEDIR $OUTDIR_A $TMPDIR "adaptive"
-#done
+for j in $(seq 1 5);
+do
+  SIM=$(((i-1)*5+j))
+  SIM=$i
+  python $SCRIPTDIR/SIM.py $U $PILOT $FINAL $SIM $FILEDIR $OUTDIR_P $TMPDIR "predictive"
+  python $SCRIPTDIR/SIM.py $U $PILOT $FINAL $SIM $FILEDIR $OUTDIR_A $TMPDIR "adaptive"
+done

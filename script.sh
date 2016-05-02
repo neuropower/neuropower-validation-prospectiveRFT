@@ -1,23 +1,19 @@
 srun -p russpold --qos=russpold --time=10:00:00 --x11 -n1 --pty bash
 
-i=1
-export i
-sbatch HCP_interim.sbatch
-sbatch HCP_prospective.sbatch
-sbatch SIM_interim.sbatch
-sbatch SIM.sbatch
-
-for i in {1..250}
+for i in {1..20}
 do
   export i
-  sbatch SIM.sbatch
+  sbatch SIM_interim.sbatch
 done
 
-for i in {1..125}
+for i in {1..100}
 do
   export i
-  sbatch conditional.sbatch
+  sbatch HCP_interim.sbatch
 done
+
+
+
 
 for i in {260..500}
 do
