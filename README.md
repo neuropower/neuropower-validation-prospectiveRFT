@@ -4,7 +4,7 @@ This repository contains all code to validate the methodology behind [Neuropower
 
 ### Workflow
 
-#### Reproduce
+##### Reproduce
 To reproduce the results on a local machine, please customize config.sh with a personal folder structure.
 To reproduce the results in [This paper](http://biorxiv.org/content/early/2016/04/20/049429), follow these pipelines:
 
