@@ -1,6 +1,6 @@
 srun -p russpold --qos=russpold --time=10:00:00 --x11 -n1 --pty bash
 
-for i in {1..20}
+for i in {1..25}
 do
   export i
   sbatch SIM_interim.sbatch

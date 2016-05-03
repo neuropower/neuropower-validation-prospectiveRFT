@@ -3,7 +3,7 @@
 #SBATCH --job-name=SIM.interim
 #SBATCH --output=error/out.SIM.interim
 #SBATCH --error=error/err.SIM.interim
-#SBATCH --time=20:00:00
+#SBATCH --time=30:00:00
 #SBATCH --nodes=1
 #SBATCH --partition=russpold
 #SBATCH --qos=russpold
@@ -22,7 +22,7 @@ OUTDIR_P=$(echo $RESDIR\SIM_predictive_$PILOT\_$U/)
 if [ ! -d "$OUTDIR_A" ]; then mkdir $OUTDIR_A; fi
 if [ ! -d "$OUTDIR_P" ]; then mkdir $OUTDIR_P; fi
 
-for j in $(seq 1 5);
+for j in $(seq 1 4);
 do
   SIM=$(((i-1)*5+j))
   SIM=$i
