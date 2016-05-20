@@ -12,7 +12,7 @@ threshold = sys.argv[6]
 basefolder = sys.argv[7]
 outfolder = sys.argv[8]
 
-folder = os.path.join(basefolder+'/interim',modality+'_'+adaptive,threshold)
+folder = os.path.join(basefolder+modality+'_'+adaptive+'_'+str(pilot_sub)+"_"+threshold)
 outfile = os.path.join(outfolder,"estimation_"+modality+'_'+adaptive+'_'+threshold+'.csv')
 
 results = []

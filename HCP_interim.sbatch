@@ -14,11 +14,8 @@ PILOT=15
 FINAL=65
 U="2.3"
 
-SCRIPTDIR=$(echo $HOMEDIR\PythonScripts/)
-FILEDIR=$(echo $HOMEDIR\HcpFiles/)
-
-OUTDIR_A=$(echo $RESDIR\HCP_adaptive_$PILOT\_$U/)
-OUTDIR_P=$(echo $RESDIR\HCP_predictive_$PILOT\_$U/)
+OUTDIR_A=$(echo $RESDIR\hcp_adaptive_$PILOT\_$U/)
+OUTDIR_P=$(echo $RESDIR\hcp_predictive_$PILOT\_$U/)
 
 if [ ! -d "$OUTDIR_A" ]; then mkdir $OUTDIR_A; fi
 if [ ! -d "$OUTDIR_P" ]; then mkdir $OUTDIR_P; fi

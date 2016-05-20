@@ -13,29 +13,26 @@ import shutil
 import csv
 import sys
 import imp
-import BUM
-import neuropower
-import cluster
-import peakdistribution
+from neuropower import BUM, neuropowermodels, cluster
 import simul_multisubject_fmri_dataset
 import model
 import uuid
+from palettable.colorbrewer.qualitative import Paired_12,Set1_9
+import matplotlib.pyplot as plt
 
-sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
-exc = float(sys.argv[1])
-pilot_sub = int(sys.argv[2])
-final_sub = int(sys.argv[3])
-seed = int(sys.argv[4])
-FILEDIR = sys.argv[5]
+EXC = float(sys.argv[1])
+PILOT = int(sys.argv[2])
+FINAL = int(sys.argv[3])
+SEED = int(sys.argv[4])
+SIMFILEDIR = sys.argv[5]
 RESDIR = sys.argv[6]
 TMPDIR = sys.argv[7]
 ADAPTIVE = sys.argv[8]
-
-print(FILEDIR)
+MODEL = sys.argv[9]
 
 TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
 
-resfile = os.path.join(RESDIR,"estimation_sim_"+str(seed)+".csv")
+resfile = os.path.join(RESDIR,"estimation_sim_"+str(SEED)+".csv")
 if os.path.isfile(resfile):
     os.remove(resfile)
 
@@ -52,18 +49,21 @@ for c in range(16):
     widths = [2,4,6,8]*4
     es_names = np.repeat(["half","one","onehalf","two"],4)
     wd_names = [2,4,6,8]*4
+
     #parameters
     smooth_FWHM = 3
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
-    mask = nib.load(os.path.join(FILEDIR,"SIM_mask.nii"))
+    mask = nib.load(os.path.join(SIMFILEDIR,"SIM_mask.nii"))
     width = widths[c]
     effectsize = effectsizes[c]
+
     #size of dataset
     if ADAPTIVE == "adaptive":
-        total_sub = final_sub
+        total_sub = FINAL
     elif ADAPTIVE == "predictive":
-        total_sub = final_sub+pilot_sub
+        total_sub = FINAL+PILOT
+
     # generate noise + signal
     noise = simul_multisubject_fmri_dataset.surrogate_3d_dataset(
         n_subj=total_sub,
@@ -73,8 +73,8 @@ for c in range(16):
         width=5.0,
         out_text_file=None,
         out_image_file=None,
-        seed=seed)
-    signal = nib.load(os.path.join(FILEDIR,"SIM_activation"+str(width)+".nii")).get_data()
+        seed=SEED)
+    signal = nib.load(os.path.join(SIMFILEDIR,"SIM_activation"+str(width)+".nii")).get_data()
     signal = np.repeat(signal[:, :, :, np.newaxis], total_sub, axis=3)
     low_values_indices = signal < 0.1
     signal[low_values_indices] = 0
@@ -85,61 +85,105 @@ for c in range(16):
     img=nib.Nifti1Image(activation,np.eye(4))
     img.to_filename("activation.nii.gz")
     data = signal + noise
-    data_pilot = data[:,:,:,0:pilot_sub]
+    data_pilot = data[:,:,:,0:PILOT]
     img=nib.Nifti1Image(data_pilot,np.eye(4))
     img.to_filename("simulation.nii.gz")
+
     # perform second level OLS analysis on simulated data
-    model.model(pilot_sub,TEMPDIR)
-    fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(FILEDIR,'SIM_mask.nii'))
+    model.model(PILOT,TEMPDIR)
+    fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(SIMFILEDIR,'SIM_mask.nii'))
     os.popen(fslcmd).read()
 
     # extract peaks
-
     SPM = nib.load("stats/zstat1.nii.gz").get_data()
+    MASK = nib.load(os.path.join(SIMFILEDIR,'SIM_mask.nii')).get_data()
     SPM = SPM[::-1,:,:]
-    peaks = cluster.cluster(SPM,exc)
+    if MODEL == "RFT":
+        peaks = cluster.PeakTable(SPM,EXC,MASK)
+    elif MODEL == "CS":
+        peaks = cluster.PeakTable(SPM,-100,MASK)
 
     ###############################################################
     # estimate and compute model and estimate power on pilot data #
     ###############################################################
 
     # compute P-values
-
-    pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-    pvalues = [max(10**(-6),t) for t in pvalues]
+    if MODEL == "RFT":
+        pvalues = np.exp(-EXC*(np.array(peaks.peak)-EXC))
+        pvalues = [max(10**(-6),t) for t in pvalues]
+    elif MODEL == "CS":
+        pvalues = 1-np.asarray(neuropowermodels.nulCDF(peaks.peak,method="CS"))
     peaks['pval'] = pvalues
 
     # estimate model
-
-    bum = BUM.bumOptim(peaks['pval'].tolist(),starts=10)
+    bum = BUM.EstimatePi1(peaks['pval'].tolist(),starts=10)
     if bum['pi1'] == 0:
         est_eff = 'nan'
     else:
-        modelfit = neuropower.modelfit(peaks.peak,bum['pi1'],exc=exc,starts=20,method="RFT")
-        est_eff = modelfit['mu']
-        est_sd = modelfit['sigma']
-        tau = neuropower.TruncTau(est_eff,est_sd,exc)
-        est_exp_eff = est_eff + tau*est_sd
+        if MODEL == "RFT":
+            modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],EXC=EXC,starts=20,method="RFT")
+            est_eff = modelfit['mu']
+            est_sd = modelfit['sigma']
+            tau = neuropowermodels.TruncTau(est_eff,est_sd,EXC)
+            est_exp_eff = est_eff + tau*est_sd
+        elif MODEL == "CS":
+            modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],starts=5,method="CS")
+            est_sd = 'nan'
+            xn = np.arange(-10,30,0.01)
+            alt = np.asarray(neuropowermodels.altPDF(xn,mu=modelfit['mu'],method="CS"))
+            est_eff = xn[alt==np.max(alt)][0]
+            est_exp_eff = 'nan'
 
     # compute true parameters
-
     truth = []
     for i in range(len(peaks)):
-        peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
+        peak_act = activation[int(peaks.x[i]),int(peaks.y[i]),int(peaks.z[i])]
         truth.append(peak_act)
 
     truth = [0 if x == 0 else 1 for x in truth]
     peaks['active'] = truth
     true_indices = [index for index,value in enumerate(truth) if value == 1]
+
     true_effectsize = np.mean(peaks.peak[true_indices])
     true_sd = np.std(peaks.peak[true_indices])
     true_pi1 = np.mean(truth)
 
-    # write away estimation results with true values
+    # FigureCanvas
+    # twocol = Paired_12.mpl_colors
+    # xn = np.arange(-10,30,0.01)
+    # nul = [1-bum['pi1']]*np.asarray(neuropowermodels.nulPDF(xn,method="CS"))
+    # alt = bum['pi1']*np.asarray(neuropowermodels.altPDF(xn,mu=est_eff,method="CS"))
+    # mix = neuropowermodels.mixPDF(xn,pi1=bum['pi1'],mu=float(modelfit['mu']),method="CS")
+    # xn_p = np.arange(0,1,0.01)
+    # alt_p = float(bum['pi1'])*scipy.stats.beta.pdf(xn_p, float(bum['a']), 1)+1-float(bum['pi1'])
+    # null_p = [1-bum['pi1']]*len(xn_p)
+    # fig,axs=plt.subplots(1,2,figsize=(14,5))
+    # axs[0].hist(peaks.pval,lw=0,normed=True,facecolor=twocol[0],bins=np.arange(0,1.1,0.1),label="observed distribution")
+    # axs[0].set_ylim([0,3])
+    # axs[0].plot(xn_p,null_p,color=twocol[3],lw=2,label="null distribution")
+    # axs[0].plot(xn_p,alt_p,color=twocol[5],lw=2,label="alternative distribution")
+    # axs[0].legend(loc="upper right",frameon=False)
+    # axs[0].set_title("Distribution of "+str(len(peaks))+" peak p-values \n $\pi_1$ = "+str(round(float(bum['pi1']),2)))
+    # axs[0].set_xlabel("Peak p-values")
+    # axs[0].set_ylabel("Density")
+    # axs[1].hist(peaks.peak,lw=0,facecolor=twocol[0],normed=True,bins=np.arange(min(peaks.peak),30,0.3),label="observed distribution")
+    # axs[1].set_xlim([np.min(peaks.peak),np.max(peaks.peak)])
+    # axs[1].set_ylim([0,1])
+    # axs[1].plot(xn,nul,color=twocol[3],lw=2,label="null distribution")
+    # axs[1].plot(xn,alt,color=twocol[5],lw=2, label="alternative distribution")
+    # axs[1].plot(xn,mix,color=twocol[1],lw=2,label="total distribution")
+    #
+    # axs[1].set_xlabel("Peak heights (z-values)")
+    # axs[1].set_ylabel("Density")
+    # axs[1].legend(loc="upper right",frameon=False)
 
+    # write away estimation results with true values
     estimation = [effectsize, str(wd_names[c]), bum['pi1'],true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,bum['a']]
     fd = open(resfile,"a")
     wr = csv.writer(fd,quoting=csv.QUOTE_NONE)
+    if c == 0:
+        estnames = ['es','activation','pi1e','pi1t','ese','est','esexp','sde','sdt','bumpar']
+        wr.writerow(estnames)
     wr.writerow(estimation)
     fd.close()
 
@@ -148,13 +192,15 @@ for c in range(16):
         continue
 
     # predict power
-
-    thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
-    effect_cohen = modelfit['mu']/np.sqrt(pilot_sub)
+    thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
+    effect_cohen = est_eff/np.sqrt(PILOT)
     power_predicted = []
-    for s in range(pilot_sub,final_sub):
+    for s in range(PILOT,FINAL):
         projected_effect = effect_cohen*np.sqrt(s)
-        powerpred =  {k:1-neuropower.altCDF(v,projected_effect,modelfit['sigma'],exc=exc,method="RFT") for k,v in thresholds.items() if v!='nan'}
+        if MODEL == "RFT":
+            powerpred =  {k:1-neuropower.altCDF(v,projected_effect,modelfit['sigma'],exc=EXC,method="RFT") for k,v in thresholds.items() if v!='nan'}
+        elif MODEL == "CS":
+            powerpred =  {k:1-neuropowermodels.altCDF([v],projected_effect,method="CS")[0] for k,v in thresholds.items() if v!='nan'}
         power_predicted.append(powerpred)
 
     shutil.rmtree(TEMPDIR)
@@ -164,7 +210,7 @@ for c in range(16):
     #######################
 
     power_true = []
-    for s in range(pilot_sub,final_sub):
+    for s in range(PILOT,FINAL):
 
         #simulate data
         os.mkdir(TEMPDIR)
@@ -174,33 +220,37 @@ for c in range(16):
         if ADAPTIVE == "adaptive":
             data_final = data[:,:,:,0:s]
         elif ADAPTIVE == "predictive":
-            data_final = data[:,:,:,pilot_sub:pilot_sub+s]
+            data_final = data[:,:,:,PILOT:PILOT+s]
 
         img=nib.Nifti1Image(data_final,np.eye(4))
         img.to_filename(os.path.join("simulation.nii.gz"))
 
         # analyse data and extract peaks
         model.model(new_subj,TEMPDIR)
-        fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(FILEDIR,'SIM_mask.nii'))
+        fslcmd = 'flameo --copefile=simulation.nii.gz --covsplitfile=design.grp --designfile=design.mat --ld=stats --maskfile=%s --runmode=ols --tcontrastsfile=design.con' %(os.path.join(SIMFILEDIR,'SIM_mask.nii'))
         os.popen(fslcmd).read()
 
         SPM = nib.load("stats/zstat1.nii.gz").get_data()
         SPM = SPM[::-1,:,:]
-        peaks = cluster.cluster(SPM,exc)
-        pvalues = np.exp(-exc*(np.array(peaks.peak)-exc))
-        pvalues = [max(10**(-6),t) for t in pvalues]
+        if MODEL == "RFT":
+            peaks = cluster.PeakTable(SPM,EXC)
+            pvalues = np.exp(-EXC*(np.array(peaks.peak)-EXC))
+            pvalues = [max(10**(-6),t) for t in pvalues]
+        elif MODEL == "CS":
+            peaks = cluster.PeakTable(SPM,-100,MASK)
+            pvalues = 1-np.asarray(neuropowermodels.nulCDF(peaks.peak,method="CS"))
         peaks['pval'] = pvalues
 
-        # compute true power for different procedures
 
+        # compute true power for different procedures
         truth = []
         for i in range(len(peaks)):
-            peak_act = activation[peaks.x[i],peaks.y[i],peaks.z[i]]
+            peak_act = activation[int(peaks.x[i]),int(peaks.y[i]),int(peaks.z[i])]
             truth.append(peak_act)
 
         truth = [0 if x == 0 else 1 for x in truth]
         peaks['active'] = truth
-        thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=FWHM,mask=mask,alpha=0.05,exc=exc)
+        thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
         res = {
             'UN_TP':'nan','BF_TP':'nan','RFT_TP':'nan','BH_TP':'nan',
             'UN_FP':'nan','BF_FP':'nan','RFT_FP':'nan','BH_FP':'nan',
@@ -211,7 +261,7 @@ for c in range(16):
             ind = ["UN","BF","RFT","BH"][method]
             if thresholds[ind] == 'nan':
                 continue
-            if np.sum(peaks.peak>exc) == 0:
+            if MODEL == "RFT" and np.sum(peaks.peak>EXC) == 0:
                 TP = FP = TN = FN = 0
             else:
                 pos = peaks.peak>thresholds[ind]
@@ -228,17 +278,16 @@ for c in range(16):
         shutil.rmtree(TEMPDIR)
 
     # write away data
-
     toCSV = power_predicted
     keys = toCSV[0].keys()
-    with open(os.path.join(RESDIR,'powpre_sim_'+str(seed)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
+    with open(os.path.join(RESDIR,'powpre_sim_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)
 
     toCSV = power_true
     keys = toCSV[0].keys()
-    with open(os.path.join(RESDIR,'powtru_sim_'+str(seed)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
+    with open(os.path.join(RESDIR,'powtru_sim_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)

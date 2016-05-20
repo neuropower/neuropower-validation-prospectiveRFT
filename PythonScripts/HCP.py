@@ -13,15 +13,11 @@ import shutil
 import csv
 import imp
 import subprocess
-import BUM
-import neuropower
-import cluster
-import peakdistribution
+from neuropower import BUM, neuropowermodels, cluster
 import model
 import pandas
 import uuid
 
-sys.path.append("/share/PI/russpold/software/anaconda/lib/python2.7/site-packages")
 exc = float(sys.argv[1])
 pilot_sub = int(sys.argv[2])
 final_sub = int(sys.argv[3])
@@ -132,7 +128,7 @@ for c in range(47):
     if bum['pi1'] == 0:
         est_eff = 'nan'
     else:
-        modelfit = neuropower.modelfit(peaks.peak,bum['pi1'],exc=exc,starts=10,method="RFT")
+        modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],exc=exc,starts=10,method="RFT")
         est_eff = modelfit['mu']
         est_sd = modelfit['sigma']
         tau = neuropower.TruncTau(est_eff,est_sd,exc)
@@ -216,7 +212,7 @@ for c in range(47):
 
     # predict power
 
-    thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=5,mask=nib.load(maskfile),alpha=0.05,exc=exc)
+    thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=exc,method="RFT")
     effect_cohen = modelfit['mu']/np.sqrt(pilot_sub)
     power_predicted = []
     for s in range(pilot_sub,final_sub):
@@ -260,7 +256,7 @@ for c in range(47):
             truth.append(peak_act)
         truth = [0 if x == 0 else 1 for x in truth]
         peaks['active'] = truth
-        thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=8,mask=nib.load(maskfile),alpha=0.05,exc=exc)
+        thresholds = neuropower.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=exc,method="RFT")
         TPR = {'UN':'nan','BF':'nan','RFT':'nan','BH':'nan'}
         for method in range(4):
             ind = ["UN","BF","RFT","BH"][method]

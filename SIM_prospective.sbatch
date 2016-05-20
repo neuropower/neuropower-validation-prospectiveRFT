@@ -1,28 +1,28 @@
 #!/bin/bash
 
-#SBATCH --job-name=SIM.predictive
-#SBATCH --output=error/out.SIM.predictive
-#SBATCH --error=error/err.SIM.predictive
-#SBATCH --time=30:00:00
+#SBATCH --job-name=SIM.PRE.CS
+#SBATCH --output=error/out.SIM.PRE.CS
+#SBATCH --error=error/err.SIM.PRE.CS
+#SBATCH --time=10:00:00
 #SBATCH --nodes=1
 #SBATCH --partition=russpold
 #SBATCH --qos=russpold
 
 . ./config.sh
 
-PILOT=10
+PILOT=15
 FINAL=65
-U="2.3"
+EXC="2.3"
+ADAPTIVE="predictive"
+MODEL="CS"
 
-SCRIPTDIR=$(echo $HOMEDIR\PythonScripts/)
-FILEDIR=$(echo $HOMEDIR\SimulationFiles/)
-OUTDIR=$(echo $RESDIR\SIM_predictive_$PILOT\_$U/)
+OUTDIR=$(echo $RESDIR\SIM_predictive_$PILOT\_$EXC\_$MODEL)
 
 if [ ! -d "$OUTDIR" ]; then mkdir $OUTDIR; fi
 
 #for j in $(seq 1 3);
 #do
 #SIM=$(((i-1)*3+j))
-SIM=$i
-python $SCRIPTDIR/SIM.py $U $PILOT $FINAL $SIM $FILEDIR $RESDIR $TMPDIR "predictive"
+SEED=$i
+python $SCRIPTDIR/SIM.py $EXC $PILOT $FINAL $SEED $SIMFILEDIR $OUTDIR $TMPDIR $ADAPTIVE $MODEL
 #done

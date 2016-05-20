@@ -9,7 +9,7 @@ library(gplots)
 library(gridExtra)
 
 
-RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Results/power_interim_SIM/"
+RESDIR <- "/Users/Joke/Documents/Onderzoek/ProjectsOngoing/Power/InterimPowerResults/tables/"
 HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation/"
 FIGDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation_Figures/SIM_interim/"
 

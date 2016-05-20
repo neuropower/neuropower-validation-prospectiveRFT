@@ -15,7 +15,8 @@ library(gridExtra)
 
 
 HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation/"
-RESDIR <- "/Users/Joke/Documents/Onderzoek/Studie_4_propow/InterimPower_Results/"
+RESDIR <- "/Users/Joke/Documents/Onderzoek/ProjectsOngoing/Power/InterimPowerResults/"
+
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
@@ -254,7 +255,7 @@ pUN <- ggplot(cond.tot[cond.tot$mcp=="UN",],aes(interaction(factor(adaptive),fac
         panel.grid.minor = element_blank(),
         axis.ticks = element_blank(), 
         axis.text.x = element_blank(),
-        legend.position="none",     
+        #legend.position="none",     
         panel.border = element_rect(fill=NA,colour="black")
   ) +
   scale_fill_manual(values = cols) +
