@@ -3,7 +3,7 @@
 #SBATCH --job-name=SIM.PRE.CS
 #SBATCH --output=error/out.SIM.PRE.CS
 #SBATCH --error=error/err.SIM.PRE.CS
-#SBATCH --time=10:00:00
+#SBATCH --time=40:00:00
 #SBATCH --nodes=1
 #SBATCH --partition=russpold
 #SBATCH --qos=russpold
@@ -11,12 +11,12 @@
 . ./config.sh
 
 PILOT=15
-FINAL=65
+FINAL=40
 EXC="2.3"
 ADAPTIVE="predictive"
 MODEL="CS"
 
-OUTDIR=$(echo $RESDIR\SIM_predictive_$PILOT\_$EXC\_$MODEL)
+OUTDIR=$(echo $RESDIR\SIM_$ADAPTIVE\_$PILOT\_$EXC\_$MODEL)
 
 if [ ! -d "$OUTDIR" ]; then mkdir $OUTDIR; fi
 

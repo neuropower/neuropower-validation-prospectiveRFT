@@ -6,6 +6,12 @@ do
   sbatch SIM_prospective.sbatch
 done
 
+
+i=1
+export i
+sbatch SIM_prospective.sbatch
+
+
 for i in {1..100}
 do
   export i
@@ -19,9 +25,4 @@ do
   sbatch HCP_interim.sbatch
 done
 
-
-# check number of entries in result files
-for j in $(seq 1 500);
-do
-  more estimation_hcp_$j.csv | wc
-done
+rsync -azP jdurnez@sherlock.stanford.edu:/scratch/users/jdurnez/power/tables/ /Users/Joke/Documents/Onderzoek/ProjectsOngoing/power/ValidationResults/

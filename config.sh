@@ -4,21 +4,21 @@
 # validations. To re-run all analyses, please adjust this file.
 
 # This is the github folder with all analysis files
-HOMEDIR="/home/jdurnez/power/"
+export HOMEDIR="/home/jdurnez/power/"
 
 # Subdirectories of home
-SCRIPTDIR=$(echo $HOMEDIR\PythonScripts/)
-HCPFILEDIR=$(echo $HOMEDIR\HcpFiles/)
-SIMFILEDIR=$(echo $HOMEDIR\SimulationFiles/)
+export SCRIPTDIR=$(echo $HOMEDIR\PythonScripts/)
+export HCPFILEDIR=$(echo $HOMEDIR\HcpFiles/)
+export SIMFILEDIR=$(echo $HOMEDIR\SimulationFiles/)
 
 # SCRATCHDIR --> for large i/o and large files, ideally HCP-environment
-SCRATCHDIR="/scratch/users/jdurnez/power/"
+export SCRATCHDIR="/scratch/users/jdurnez/power/"
 
 # Subdirectories of scratch
-RESDIR=$(echo $SCRATCHDIR\Results/)
-TMPDIR=$(echo $SCRATCHDIR\tmp/)
-TABDIR=$(echo $SCRATCHDIR\tables/)
-FIGDIR=$(echo $SCRATCHDIR\figures/)
+export RESDIR=$(echo $SCRATCHDIR\Results/)
+export TMPDIR=$(echo $SCRATCHDIR\tmp/)
+export TABDIR=$(echo $SCRATCHDIR\tables/)
+export FIGDIR=$(echo $SCRATCHDIR\figures/)
 
 # Connectome-in-a-box folder
-HCPDIR="/scratch/PI/russpold/data/HCP/"
+export HCPDIR="/scratch/PI/russpold/data/HCP/"

@@ -12,8 +12,8 @@ import nibabel as nib
 import shutil
 import csv
 import sys
-import imp
 from neuropower import BUM, neuropowermodels, cluster
+sys.path.append("/home/jdurnez/power/Functions/")
 import simul_multisubject_fmri_dataset
 import model
 import uuid
@@ -126,6 +126,7 @@ for c in range(16):
             est_sd = modelfit['sigma']
             tau = neuropowermodels.TruncTau(est_eff,est_sd,EXC)
             est_exp_eff = est_eff + tau*est_sd
+            mu = modelfit['mu']
         elif MODEL == "CS":
             modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],starts=5,method="CS")
             est_sd = 'nan'
@@ -133,6 +134,7 @@ for c in range(16):
             alt = np.asarray(neuropowermodels.altPDF(xn,mu=modelfit['mu'],method="CS"))
             est_eff = xn[alt==np.max(alt)][0]
             est_exp_eff = 'nan'
+            mu = modelfit['mu']
 
     # compute true parameters
     truth = []
@@ -152,7 +154,7 @@ for c in range(16):
     # twocol = Paired_12.mpl_colors
     # xn = np.arange(-10,30,0.01)
     # nul = [1-bum['pi1']]*np.asarray(neuropowermodels.nulPDF(xn,method="CS"))
-    # alt = bum['pi1']*np.asarray(neuropowermodels.altPDF(xn,mu=est_eff,method="CS"))
+    # alt = bum['pi1']*np.asarray(neuropowermodels.altPDF(xn,mu=modelfit['mu'],method="CS"))
     # mix = neuropowermodels.mixPDF(xn,pi1=bum['pi1'],mu=float(modelfit['mu']),method="CS")
     # xn_p = np.arange(0,1,0.01)
     # alt_p = float(bum['pi1'])*scipy.stats.beta.pdf(xn_p, float(bum['a']), 1)+1-float(bum['pi1'])
@@ -193,7 +195,7 @@ for c in range(16):
 
     # predict power
     thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
-    effect_cohen = est_eff/np.sqrt(PILOT)
+    effect_cohen = modelfit['mu']/np.sqrt(PILOT)
     power_predicted = []
     for s in range(PILOT,FINAL):
         projected_effect = effect_cohen*np.sqrt(s)
