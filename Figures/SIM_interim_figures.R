@@ -14,8 +14,7 @@ library(plyr)
 library(gridExtra)
 
 
-HOMEDIR <- "~/Documents/Onderzoek/Studie_4_propow/ProspectivePowerValidation/"
-RESDIR <- "/Users/Joke/Documents/Onderzoek/ProjectsOngoing/Power/InterimPowerResults/"
+RESDIR <- "/Users/Joke/Documents/Onderzoek/ProjectsOngoing/Power/ValidationResults/"
 
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
@@ -34,37 +33,15 @@ g_legend<-function(a.gplot){
 
 # read in results
 
-res.nonad <- read.table(paste(RESDIR,"tables/estimation_sim_nonadaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-pre.nonad <- read.table(paste(RESDIR,"tables/powpred_sim_nonadaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-obs.nonad <- read.table(paste(RESDIR,"tables/powtrue_sim_nonadaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-cond.nonad <- read.table(paste(RESDIR,"tables/conditional_nonadaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
+res.nonad.file = paste(RESDIR,"estimation_sim_predictive_2.3_CS.csv",sep="")
+pre.nonad.file = paste(RESDIR,"prediction_sim_predictive_2.3_CS.csv",sep="")
+true.nonad.file = paste(RESDIR,"true_sim_predictive_2.3_CS.csv",sep="")
+cond.nonad.file = paste(RESDIR,"conditional_sim_predictive_2.3_CS.csv",sep="")
 
-res.ad <- read.table(paste(RESDIR,"tables/estimation_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-pre.ad <- read.table(paste(RESDIR,"tables/powpred_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-obs.ad <- read.table(paste(RESDIR,"tables/powtrue_sim_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-cond.ad <- read.table(paste(RESDIR,"tables/conditional_adaptive_u",u,".csv",sep=""),header=TRUE,sep=",")
-
-names(cond.nonad) <- names(cond.ad) <- c("ind","FDR","FPR","FWER","TPR","condition","mcp","sim","subjects","truesubneed")
-cond.nonad$adaptive="predictive"
-cond.ad$adaptive = "adaptive"
-cond.tot <- rbind(cond.nonad,cond.ad)
-cond.tot$condition <- factor(cond.tot$condition)
-# take mean of power predictions over simulations
-
-pre.ad.mn <- ddply(pre.ad,
-                   ~subjects+condition+mcp,
-                   summarise,
-                   TPR=mean(power)
-                   )
-obs.ad.mn <- ddply(obs.ad,
-                   ~subjects+condition+mcp,
-                   summarise,
-                   TPR=mean(TPR),
-                   FPR=mean(FPR),
-                   FDR=mean(FDR),
-                   FWER=mean(FWER)
-                   )
-obs.ad.mn$condition <- factor(obs.ad.mn$condition)
+res.nonad <- read.table(res.nonad.file,header=TRUE,sep=",")
+pre.nonad <- read.table(pre.nonad.file,header=TRUE,sep=",")
+obs.nonad <- read.table(true.nonad.file,header=TRUE,sep=",")
+cond.nonad <- read.table(cond.nonad.file,header=TRUE,sep=",")
 
 pre.nonad.mn <- ddply(pre.nonad,
                    ~subjects+condition+mcp,
@@ -74,27 +51,18 @@ pre.nonad.mn <- ddply(pre.nonad,
 obs.nonad.mn <- ddply(obs.nonad,
                    ~subjects+condition+mcp,
                    summarise,
-                   TPR=mean(TPR),
-                   FPR=mean(FPR),
-                   FDR=mean(FDR),
-                   FWER=mean(FWER)
-)
+                   TPR=mean(power))
 obs.nonad.mn$condition <- factor(obs.nonad.mn$condition)
 
-bias.ad.mn$bias <- pre.ad.mn$TPR - obs.ad.mn$TPR
-bias.nonad.mn <- pre.nonad.mn[,1:3]
-bias.nonad.mn$bias <- pre.nonad.mn$TPR - obs.ad.mn$TPR
+bias.nonad.mn = pre.nonad.mn[,1:3]
+bias.nonad.mn$bias = pre.nonad.mn[,4]-obs.nonad.mn[,4]
 
-
-cond.mn <- ddply(cond.tot,
-                    ~condition + mcp + adaptive,
+cond.mn <- ddply(cond.nonad,
+                    ~condition + mcp,
                     summarise,
-                    TPR = mean(TPR),
-                    FDR = mean(FDR),
-                    FPR = mean(FPR),
-                    FWER = mean(FWER),
-                    subjects = mean(subjects),
-                    truesubneed = mean(truesubneed)
+                    power = mean(power),
+                    predicted = mean(predicted),
+                    true = mean(true)
                     )
 
 ########################################
@@ -139,9 +107,9 @@ plot(seq(0,1,length=10),
 
 abline(0,1,lwd=1,col="grey50")
 box();axis(1);axis(2)
-points(res.ad$pi1t,
-       res.ad$pi1e,
-       col=alpha(cols[res.ad$condition]),
+points(res.nonad$pi1t,
+       res.nonad$pi1e,
+       col=alpha(cols[res.nonad$condition]),
        pch=16,cex=cxp
        )
 
@@ -158,9 +126,9 @@ plot(seq(2.3,6,length=10),
 abline(0,1,lwd=1,col="grey50")
 box();axis(1);axis(2)
 
-points(res.ad$efft,
-       res.ad$effex,
-       col=alpha(cols[res.ad$condition]),
+points(res.nonad$est,
+       res.nonad$ese,
+       col=alpha(cols[res.nonad$condition]),
        pch=16,cex=cxp
 )
 
@@ -373,8 +341,8 @@ for(m in 1:4){
     geom_polygon(data=polygon, mapping=aes(x=x, y=y),fill="gray90") +
     geom_abline(colour="grey50") +
     geom_jitter(data=cond.ad[cond.ad$mcp==method,],
-                aes(x=truesubneed,
-                    y=subjects,
+                aes(x=true,
+                    y=predicted,
                     group=factor(condition),
                     colour=factor(condition)
                 ),
@@ -382,8 +350,8 @@ for(m in 1:4){
                 alpha=1/50
     ) +
     geom_jitter(data=cond.ad.mn[cond.ad.mn$mcp==method,],
-                aes(x=truesubneed,
-                    y=subjects,
+                aes(x=true,
+                    y=predicted,
                     group=factor(condition),
                     colour=factor(condition)
                 ),

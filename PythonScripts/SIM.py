@@ -51,7 +51,7 @@ for c in range(16):
     wd_names = [2,4,6,8]*4
 
     #parameters
-    smooth_FWHM = 3
+    smooth_FWHM = 5
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
     mask = nib.load(os.path.join(SIMFILEDIR,"SIM_mask.nii"))
@@ -195,13 +195,16 @@ for c in range(16):
 
     # predict power
     thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
-    effect_cohen = modelfit['mu']/np.sqrt(PILOT)
+    effect_cohen = est_eff/np.sqrt(PILOT)
     power_predicted = []
     for s in range(PILOT,FINAL):
         projected_effect = effect_cohen*np.sqrt(s)
         if MODEL == "RFT":
             powerpred =  {k:1-neuropower.altCDF(v,projected_effect,modelfit['sigma'],exc=EXC,method="RFT") for k,v in thresholds.items() if v!='nan'}
         elif MODEL == "CS":
+            xn = np.arange(-10,30,0.01)
+            nul = np.asarray(neuropowermodels.nulPDF(xn,method="CS"))
+            projected_effect = projected_effect-xn[nul==np.max(nul)][0]
             powerpred =  {k:1-neuropowermodels.altCDF([v],projected_effect,method="CS")[0] for k,v in thresholds.items() if v!='nan'}
         power_predicted.append(powerpred)
 
