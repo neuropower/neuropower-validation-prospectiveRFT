@@ -21,7 +21,7 @@ effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
 cons_list <- paste("EFFECT:",effs," - ","ACTIVATION SIZE:",acts,sep="")
 methods_n <- c("Uncorrected","Benjamini-Hochberg","Bonferroni","Random Field Theory")
-u <- 2
+u <- 3.2
 
 ## FUNCTIONS
 
@@ -31,23 +31,53 @@ g_legend<-function(a.gplot){
   legend <- tmp$grobs[[leg]]
   return(legend)}
 
-# read in results
+# result files name
 
-res.nonad.file = paste(RESDIR,"estimation_sim_predictive_2.3_CS.csv",sep="")
-pre.nonad.file = paste(RESDIR,"prediction_sim_predictive_2.3_CS.csv",sep="")
-true.nonad.file = paste(RESDIR,"true_sim_predictive_2.3_CS.csv",sep="")
-cond.nonad.file = paste(RESDIR,"conditional_sim_predictive_2.3_CS.csv",sep="")
+res.nonad.file = paste(RESDIR,"estimation_sim_predictive_",u,"_CS.csv",sep="")
+pre.nonad.file = paste(RESDIR,"prediction_sim_predictive_",u,"_CS.csv",sep="")
+true.nonad.file = paste(RESDIR,"true_sim_predictive_",u,"_CS.csv",sep="")
+cond.nonad.file = paste(RESDIR,"conditional_sim_predictive_",u,"_CS.csv",sep="")
+res.ad.file = paste(RESDIR,"estimation_sim_adaptive_",u,"_CS.csv",sep="")
+pre.ad.file = paste(RESDIR,"prediction_sim_adaptive_",u,"_CS.csv",sep="")
+true.ad.file = paste(RESDIR,"true_sim_adaptive_",u,"_CS.csv",sep="")
+cond.ad.file = paste(RESDIR,"conditional_sim_adaptive_",u,"_CS.csv",sep="")
+
+# read results
 
 res.nonad <- read.table(res.nonad.file,header=TRUE,sep=",")
 pre.nonad <- read.table(pre.nonad.file,header=TRUE,sep=",")
 obs.nonad <- read.table(true.nonad.file,header=TRUE,sep=",")
 cond.nonad <- read.table(cond.nonad.file,header=TRUE,sep=",")
+cond.nonad$adaptive <- "predictive"
+res.ad <- read.table(res.ad.file,header=TRUE,sep=",")
+pre.ad <- read.table(pre.ad.file,header=TRUE,sep=",")
+obs.ad <- read.table(true.ad.file,header=TRUE,sep=",")
+cond.ad <- read.table(cond.ad.file,header=TRUE,sep=",")
+cond.ad$adaptive <- "adaptive"
+
+cntr <- 0
+for (eff in c(0.5,1,1.5,2)){
+  for (act in c(2,4,6,8)){
+    cntr <- cntr+1
+    res.nonad$condition[res.nonad$es == eff & res.nonad$activation == act] = cntr
+    res.ad$condition[res.ad$es == eff & res.ad$activation == act] = cntr
+    
+  }
+}
+
+
+cond.tot <- rbind(cond.nonad,cond.ad)
+cond.tot$condition = factor(cond.tot$condition)
+
+# average over simulations
+# nonadaptive
 
 pre.nonad.mn <- ddply(pre.nonad,
                    ~subjects+condition+mcp,
                    summarise,
                    TPR=mean(power)
 )
+
 obs.nonad.mn <- ddply(obs.nonad,
                    ~subjects+condition+mcp,
                    summarise,
@@ -57,13 +87,60 @@ obs.nonad.mn$condition <- factor(obs.nonad.mn$condition)
 bias.nonad.mn = pre.nonad.mn[,1:3]
 bias.nonad.mn$bias = pre.nonad.mn[,4]-obs.nonad.mn[,4]
 
-cond.mn <- ddply(cond.nonad,
+cond.nonad.mn <- ddply(cond.nonad,
                     ~condition + mcp,
                     summarise,
                     power = mean(power),
                     predicted = mean(predicted),
-                    true = mean(true)
+                    true = mean(true),
+                    FWE = mean(FWE,na.rm=TRUE),
+                    FDR = mean(FDR,na.rm=TRUE),
+                    FPR = mean(FPR,na.rm=TRUE)
                     )
+
+# average over simulations
+# adaptive
+
+pre.ad.mn <- ddply(pre.ad,
+                      ~subjects+condition+mcp,
+                      summarise,
+                      TPR=mean(power)
+)
+
+obs.ad.mn <- ddply(obs.ad,
+                      ~subjects+condition+mcp,
+                      summarise,
+                      TPR=mean(power))
+obs.ad.mn$condition <- factor(obs.ad.mn$condition)
+
+bias.ad.mn = pre.ad.mn[,1:3]
+bias.ad.mn$bias = pre.ad.mn[,4]-obs.ad.mn[,4]
+
+cond.ad.mn <- ddply(cond.ad,
+                       ~condition + mcp,
+                       summarise,
+                       power = mean(power),
+                       predicted = mean(predicted),
+                       true = mean(true),
+                      FWE = mean(FWE,na.rm=TRUE),
+                      FDR = mean(FDR,na.rm=TRUE),
+                      FPR = mean(FPR,na.rm=TRUE)                    
+)
+
+# average over simulations
+# conditional total
+
+cond.mn <- ddply(cond.tot,
+                       ~condition + mcp + adaptive,
+                       summarise,
+                       power = mean(power),
+                       predicted = mean(predicted),
+                       FPR = mean(FPR,na.rm=TRUE),
+                       FDR = mean(FDR,na.rm=TRUE),
+                       FWE = mean(FWE,na.rm=TRUE),
+                       true = mean(true,na.rm=TRUE)
+)
+
 
 ########################################
 ## EVALUATE ESTIMATION MODEL ADAPTIVE ##
@@ -107,16 +184,16 @@ plot(seq(0,1,length=10),
 
 abline(0,1,lwd=1,col="grey50")
 box();axis(1);axis(2)
-points(res.nonad$pi1t,
-       res.nonad$pi1e,
-       col=alpha(cols[res.nonad$condition]),
+points(res.ad$pi1t,
+       res.ad$pi1e,
+       col=alpha(cols[res.ad$condition]),
        pch=16,cex=cxp
        )
 
 # plot 2: model estimation
 
-plot(seq(2.3,6,length=10),
-     seq(2.3,6,length=10),
+plot(seq(2,6,length=10),
+     seq(2,6,length=10),
      col=NA,
      xlab="True expected effect size",
      ylab="Estimated expected effect size",
@@ -126,9 +203,9 @@ plot(seq(2.3,6,length=10),
 abline(0,1,lwd=1,col="grey50")
 box();axis(1);axis(2)
 
-points(res.nonad$est,
-       res.nonad$ese,
-       col=alpha(cols[res.nonad$condition]),
+points(res.ad$est,
+       res.ad$ese,
+       col=alpha(cols[res.ad$condition]),
        pch=16,cex=cxp
 )
 
@@ -150,6 +227,9 @@ dev.off()
 ## EVALUATION POWER ESTIMATION ##
 #################################
 
+min <- 15
+max <- 39
+size <- max-min+1
 # parameters for text
 methname <- c("Uncorrected","False Discovery Rate","Bonferroni","Random Field Theory")
 methods <- c("UN","BH","BF","RF")
@@ -160,18 +240,18 @@ at.pow <- seq(0, 1, length.out=length(col.pow)+1)
 ckey.pow <- list(at=at.pow, col=col.pow)
 
 col.bias <- colorRampPalette(brewer.pal(11,"RdBu")[c(1:5,6,6,7:11)])(50)
-at.bias <- seq(-1, 1, length.out=length(col.bias)-1)
+at.bias <- seq(-1,1, length.out=length(col.bias)-1)
 ckey.bias <- list(at=at.bias, col=col.bias)
 
 # define scales for x and y axis
 level.scales1 <- list(y=list(labels=cons_list,at=1:16,cex=0.7),
-					 x=list(labels=seq(15,40,by=5),at=seq(1,26,by=5)))
+					 x=list(labels=seq(min,max,by=5),at=seq(1,size,by=5)))
 level.scales2 <- list(y=list(labels=rep("",16),at=1:16,cex=0.7),
-					 x=list(labels=seq(15,40,by=5),at=seq(1,26,by=5)))
+					 x=list(labels=seq(min,max,by=5),at=seq(1,size,by=5)))
 
 plots <- list(0)
 for (method in methods){
-t1 <- levelplot(t(array(pre.nonad.mn[pre.nonad.mn$mcp==method,]$TPR,dim=c(16,26))),
+t1 <- levelplot(t(array(pre.ad.mn[pre.ad.mn$mcp==method,]$TPR,dim=c(16,size))),
                 scales=level.scales1,
                 colorkey=TRUE,
                 at=at.pow,
@@ -180,7 +260,7 @@ t1 <- levelplot(t(array(pre.nonad.mn[pre.nonad.mn$mcp==method,]$TPR,dim=c(16,26)
                 par.settings=list(layout.heights=list(top.padding=-3)),                                
                 ylab=method,
                 aspect="fill")
-t2 <- levelplot(t(array(obs.nonad.mn[obs.nonad.mn$mcp==method,]$TPR,dim=c(16,26))),
+t2 <- levelplot(t(array(obs.ad.mn[obs.ad.mn$mcp==method,]$TPR,dim=c(16,size))),
                 scales=level.scales2,
                 colorkey=FALSE,
                 at=at.pow,
@@ -189,7 +269,7 @@ t2 <- levelplot(t(array(obs.nonad.mn[obs.nonad.mn$mcp==method,]$TPR,dim=c(16,26)
                 par.settings=list(layout.heights=list(top.padding=-3)),
                 ylab=method,
                 aspect="fill")
-t3 <- levelplot(t(array(bias.nonad.mn[bias.nonad.mn$mcp==method,]$bias,dim=c(16,26))),
+t3 <- levelplot(t(array(bias.ad.mn[bias.ad.mn$mcp==method,]$bias,dim=c(16,size))),
                 scales=level.scales2,
                 colorkey=TRUE,
                 at=at.bias,
@@ -223,12 +303,12 @@ pUN <- ggplot(cond.tot[cond.tot$mcp=="UN",],aes(interaction(factor(adaptive),fac
         panel.grid.minor = element_blank(),
         axis.ticks = element_blank(), 
         axis.text.x = element_blank(),
-        #legend.position="none",     
+        legend.position="none",     
         panel.border = element_rect(fill=NA,colour="black")
   ) +
   scale_fill_manual(values = cols) +
   scale_colour_manual(values=c("black",NA)) + 
-  ylim(c(0.015,0.08)) +
+  ylim(c(0,0.08)) +
   labs(x = "",
        y = "False Positive Rate",
        title="Uncorrected")    
@@ -251,7 +331,7 @@ pBH <- ggplot(cond.tot[cond.tot$mcp=="BH",],aes(interaction(factor(adaptive),fac
        y = "False Discovery Rate",
        title="FDR control")    
 
-pRFT <- ggplot(cond.mn[cond.mn$mcp=="RF",],aes(x=factor(condition),y=FWER,colour=adaptive,group=adaptive)) +
+pRFT <- ggplot(cond.mn[cond.mn$mcp=="RF",],aes(x=factor(condition),y=FWE,colour=adaptive,group=adaptive)) +
   geom_line() +
   geom_hline(aes(yintercept=0.05)) +
     theme(panel.background = element_rect(fill = NA, colour = "white"),
@@ -266,7 +346,7 @@ pRFT <- ggplot(cond.mn[cond.mn$mcp=="RF",],aes(x=factor(condition),y=FWER,colour
        y = "Familywise error rate",
        title="RFT control")    
 
-pBF <- ggplot(cond.mn[cond.mn$mcp=="BF",],aes(x=factor(condition),y=FWER,colour=adaptive,group=adaptive)) +
+pBF <- ggplot(cond.mn[cond.mn$mcp=="BF",],aes(x=factor(condition),y=FWE,colour=adaptive,group=adaptive)) +
   geom_line() +
   geom_hline(aes(yintercept=0.05)) +
     theme(panel.background = element_rect(fill = NA, colour = "white"),
@@ -299,7 +379,7 @@ leg <- ggplotGrob(
          y = "effect size")
 )
 
-legend <- g_legend(ggplot(cond.mn[cond.mn$mcp=="BF",],aes(x=factor(condition),y=FWER,colour=adaptive,group=adaptive)) + geom_line() + theme_bw())
+legend <- g_legend(ggplot(cond.mn[cond.mn$mcp=="BF",],aes(x=factor(condition),y=FWE,colour=adaptive,group=adaptive)) + geom_line() + theme_bw())
 
 
 
@@ -322,7 +402,7 @@ dev.off()
 ## REQUIRED VS OBTAINED SAMPLE SIZE ##
 ######################################
 
-transp = 0.2
+transp = 0.5
 koeleurtjes <- alpha(cols,transp)
 
 minmap <- 15
@@ -392,8 +472,8 @@ leg <- ggplotGrob(
           axis.ticks = element_blank()) +
     scale_colour_manual(labels=rep("",16), 
                         values = cols) +
-    labs(x = "percentage active",
-         y = "effect size")
+    labs(x = "signal extent",
+         y = "signal height")
 )
 
 pdf(paste(RESDIR,"figures/sstruereq.pdf",sep=""),width=10,height=9)
@@ -404,5 +484,119 @@ grid.arrange(
   arrangeGrob(empty,leg,empty,nrow=3,heights=c(2/5,1/5,2/5)),
   ncol=3,
   widths = c(2/5,2/5,1/5))
+dev.off()
+
+
+
+
+###########################
+## FINAL POWER ##
+###########################
+
+pUN <- ggplot(cond.ad[cond.ad$mcp=="UN",],aes(x=factor(condition),y=power,fill=factor(condition))) +
+  #geom_point() + 
+  #geom_violin(trim=FALSE) + 
+  geom_boxplot() + 
+  theme(panel.background = element_rect(fill = NA, colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_blank(), 
+        axis.text.x = element_blank(),
+        legend.position="none",     
+        panel.border = element_rect(fill=NA,colour="black")
+  ) +
+  scale_fill_manual(values = cols) +
+  scale_colour_manual(values=c("black",NA)) + 
+  ylim(c(0,1)) +
+  labs(x = "",
+       y = "False Positive Rate",
+       title="Uncorrected")    
+
+pBH <- ggplot(cond.ad[cond.ad$mcp=="BH",],aes(x=factor(condition),y=power,fill=factor(condition))) +
+  geom_boxplot() + 
+  #geom_violin(trim=TRUE) +
+  geom_hline(aes(yintercept=0.05)) +
+  theme(panel.background = element_rect(fill = NA, colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_blank(), 
+        axis.text.x = element_blank(),
+        legend.position="none",     
+        panel.border = element_rect(fill=NA,colour="black")
+  ) +
+  scale_fill_manual(values = cols) +
+  scale_colour_manual(values=c("black",NA)) + 
+  ylim(c(0.0,1)) +
+  labs(x = "",
+       y = "False Discovery Rate",
+       title="FDR control")    
+
+pRFT <- ggplot(cond.ad[cond.ad$mcp=="RF",],aes(factor(condition),power,fill=factor(condition))) +
+  geom_boxplot() + 
+  #geom_violin(trim=TRUE) +
+  geom_hline(aes(yintercept=0.05)) +
+  theme(panel.background = element_rect(fill = NA, colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position="none",     
+        panel.border = element_rect(fill=NA,colour="black")
+  ) +
+  scale_colour_manual(values=brewer.pal(2,"Set2")) +
+  ylim(c(0.0,1)) +
+  labs(x = "Condition",
+       y = "Familywise error rate",
+       title="RFT control")    
+
+pBF <- ggplot(cond.mn[cond.mn$mcp=="BF",],aes(factor(condition),power,fill=factor(condition))) +
+  #geom_violin(trim=TRUE) +
+  geom_boxplot() + 
+  geom_hline(aes(yintercept=0.05)) +
+  theme(panel.background = element_rect(fill = NA, colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position="none",     
+        panel.border = element_rect(fill=NA,colour="black")
+  ) +
+  scale_colour_manual(values=brewer.pal(3,"Set2")[1:2]) +
+  ylim(c(0.0,1)) +
+  labs(x = "Condition",
+       y = "Familywise error rate",
+       title="Bonferroni control")    
+
+empty <- ggplot(data.frame()) + geom_point() + xlim(0, 10) + ylim(0, 100) + theme_minimal() + theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), axis.ticks = element_blank(),axis.text.x=element_blank(),axis.text.y=element_blank())
+
+dat <- data.frame(a = factor(acts), b = factor(effs),c=cons_list)
+leg <- ggplotGrob(
+  ggplot(unique(subset(dat, select = a:b)), 
+         aes(a, b, colour=cons_list)) + 
+    geom_point(size=10, shape=15) +
+    theme(panel.background = element_rect(fill = NA, colour = "white"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.position = "none",
+          axis.ticks = element_blank()) +
+    scale_colour_manual(labels=rep("",16), 
+                        values = cols) +
+    labs(x = "percentage active",
+         y = "effect size")
+)
+
+legend <- g_legend(ggplot(cond.mn[cond.mn$mcp=="BF",],aes(x=factor(condition),y=FWE,colour=adaptive,group=adaptive)) + geom_line() + theme_bw())
+
+
+
+pdf(paste(RESDIR,"figures/FPR_adaptive_vs_nonadaptive.pdf",sep=""),width=15,height=17)
+grid.arrange(
+  arrangeGrob(pUN,pBH,
+              arrangeGrob(empty,leg,empty,nrow=3,heights=c(1/5,3/5,1/5)),
+              ncol=3,
+              widths=c(3/5,3/5,1/5)),
+  arrangeGrob(pBF,pRFT,
+              arrangeGrob(empty,legend,empty,nrow=3,heights=c(3/7,1/7,3/7)),
+              ncol=3,
+              widths=c(3/5,3/5,1/5)),
+  nrow=2,
+  main="Comparison of adaptive and non-adaptive designs \nin the coltrol of false positives"
+)
 dev.off()
 

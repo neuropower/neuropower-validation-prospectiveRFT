@@ -13,7 +13,7 @@ import shutil
 import csv
 import sys
 from neuropower import BUM, neuropowermodels, cluster
-sys.path.append("/home/jdurnez/power/Functions/")
+sys.path.append(os.path.join(os.environ.get('HOMEDIR'),"Functions/"))
 import simul_multisubject_fmri_dataset
 import model
 import uuid
@@ -24,19 +24,18 @@ EXC = float(sys.argv[1])
 PILOT = int(sys.argv[2])
 FINAL = int(sys.argv[3])
 SEED = int(sys.argv[4])
-SIMFILEDIR = sys.argv[5]
-RESDIR = sys.argv[6]
-TMPDIR = sys.argv[7]
-ADAPTIVE = sys.argv[8]
-MODEL = sys.argv[9]
+ADAPTIVE = sys.argv[5]
+MODEL = sys.argv[6]
+startloop = 0
+endloop = 16
 
+SIMFILEDIR = os.environ.get('SIMFILEDIR')
+RESDIR = os.environ.get('OUTDIR')
+TMPDIR = os.environ.get('TMPDIR')
 TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
 
-resfile = os.path.join(RESDIR,"estimation_sim_"+str(SEED)+".csv")
-if os.path.isfile(resfile):
-    os.remove(resfile)
-
-for c in range(16):
+for c in np.arange(startloop,endloop):
+    resfile = os.path.join(RESDIR,"estimation_sim_"+str(SEED)+"_"+str(startloop)+"-"+str(endloop)+".csv")
 
     os.mkdir(TEMPDIR)
     os.chdir(TEMPDIR)
@@ -51,7 +50,7 @@ for c in range(16):
     wd_names = [2,4,6,8]*4
 
     #parameters
-    smooth_FWHM = 5
+    smooth_FWHM = 2
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
     mask = nib.load(os.path.join(SIMFILEDIR,"SIM_mask.nii"))
@@ -117,11 +116,13 @@ for c in range(16):
 
     # estimate model
     bum = BUM.EstimatePi1(peaks['pval'].tolist(),starts=10)
+    est_exp_eff="nan"
+    est_sd="nan"
     if bum['pi1'] == 0:
         est_eff = 'nan'
     else:
         if MODEL == "RFT":
-            modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],EXC=EXC,starts=20,method="RFT")
+            modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],exc=EXC,starts=20,method="RFT")
             est_eff = modelfit['mu']
             est_sd = modelfit['sigma']
             tau = neuropowermodels.TruncTau(est_eff,est_sd,EXC)
@@ -194,13 +195,13 @@ for c in range(16):
         continue
 
     # predict power
-    thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
+    thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[smooth_FWHM,smooth_FWHM,smooth_FWHM],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
     effect_cohen = est_eff/np.sqrt(PILOT)
     power_predicted = []
     for s in range(PILOT,FINAL):
         projected_effect = effect_cohen*np.sqrt(s)
         if MODEL == "RFT":
-            powerpred =  {k:1-neuropower.altCDF(v,projected_effect,modelfit['sigma'],exc=EXC,method="RFT") for k,v in thresholds.items() if v!='nan'}
+            powerpred =  {k:1-neuropowermodels.altCDF(v,projected_effect,modelfit['sigma'],exc=EXC,method="RFT") for k,v in thresholds.items() if v!='nan'}
         elif MODEL == "CS":
             xn = np.arange(-10,30,0.01)
             nul = np.asarray(neuropowermodels.nulPDF(xn,method="CS"))
@@ -238,7 +239,7 @@ for c in range(16):
         SPM = nib.load("stats/zstat1.nii.gz").get_data()
         SPM = SPM[::-1,:,:]
         if MODEL == "RFT":
-            peaks = cluster.PeakTable(SPM,EXC)
+            peaks = cluster.PeakTable(SPM,EXC,MASK)
             pvalues = np.exp(-EXC*(np.array(peaks.peak)-EXC))
             pvalues = [max(10**(-6),t) for t in pvalues]
         elif MODEL == "CS":
@@ -255,7 +256,7 @@ for c in range(16):
 
         truth = [0 if x == 0 else 1 for x in truth]
         peaks['active'] = truth
-        thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[2.5,2.5,2.5],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
+        thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[smooth_FWHM,smooth_FWHM,smooth_FWHM],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
         res = {
             'UN_TP':'nan','BF_TP':'nan','RFT_TP':'nan','BH_TP':'nan',
             'UN_FP':'nan','BF_FP':'nan','RFT_FP':'nan','BH_FP':'nan',
@@ -269,12 +270,14 @@ for c in range(16):
             if MODEL == "RFT" and np.sum(peaks.peak>EXC) == 0:
                 TP = FP = TN = FN = 0
             else:
-                pos = peaks.peak>thresholds[ind]
-                true = peaks.active==1
-                TP = np.sum([a and b for a,b in zip(pos,true)])
-                FP = np.sum([a and not b for a,b in zip(pos,true)])
-                FN = np.sum([b and not a for a,b in zip(pos,true)])
-                TN = np.sum([not a and not b for a,b in zip(pos,true)])
+                peaks['pos'] = peaks.peak>thresholds[ind]
+                peaks['true'] = peaks.active==1
+                if not (method == 1 or method == 3):
+                    peaks = peaks[peaks.peak>EXC]
+                TP = np.sum([a and b for a,b in zip(peaks.pos,peaks.true)])
+                FP = np.sum([a and not b for a,b in zip(peaks.pos,peaks.true)])
+                FN = np.sum([b and not a for a,b in zip(peaks.pos,peaks.true)])
+                TN = np.sum([not a and not b for a,b in zip(peaks.pos,peaks.true)])
             res[str(ind+"_TP")] = TP
             res[str(ind+"_FP")] = FP
             res[str(ind+"_TN")] = TN
