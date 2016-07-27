@@ -4,8 +4,8 @@
 #SBATCH -o error/out.HCP.NAD.RFT
 #SBATCH -e error/err.HCP.NAD.RFT
 #SBATCH -t 30:00:00
-#SBATCH -N 5
-#SBATCH -n 100
+#SBATCH -N 1
+#SBATCH -n 25
 #SBATCH -p normal
 #SBATCH --mail-user=joke.durnez@gmail.com
 #SBATCH --mail-type=begin   # email me when the job starts
@@ -37,7 +37,7 @@ export OUTDIR=$(echo $RESDIR\HCP_$ADAPTIVE\_$PILOT\_$EXC\_$MODEL/)
 if [ ! -d "$OUTDIR" ]; then mkdir $OUTDIR; fi
 
 # How many jobs are there for each script
-JOBSPERSCRIPT=20
+JOBSPERSCRIPT=5
 
 # Loop over jobs, loop over contrasts
 for job in $(seq 1 $JOBSPERSCRIPT)
@@ -52,7 +52,7 @@ do
     do
       echo ${starts[start]}
       echo ${ends[start]}
-    /usr/bin/time -v python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} &
+    echo /usr/bin/time -v python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} &
     sleep 2m
 
     done

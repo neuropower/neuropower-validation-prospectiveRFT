@@ -42,7 +42,23 @@ all_sub = 180
 true_sub = 100
 
 for c in np.arange(startloop,endloop):
+
     resfile = os.path.join(OUTDIR,"estimation_HCP_"+str(SEED)+"_"+str(startloop)+"-"+str(endloop)+".csv")
+    PredictionFile = os.path.join(OUTDIR,'powpre_HCP_'+str(SEED)+'_contrast_'+str(c)+'.csv')
+    TrueFile = os.path.join(OUTDIR,'powtru_HCP_'+str(SEED)+'_contrast_'+str(c)+'.csv')
+    FileList = [resfile,PredictionFile,TrueFile]
+
+    # Check if results files exist:
+        # if sample is done => continue
+        # if sample half done => remove files and restart
+        # if not done => pass
+    exist = [os.path.isfile(x) for x in FileList]
+    if np.sum(exist) == 3:
+        continue
+    elif np.sum(exist) == 0:
+        pass
+    else:
+        [os.remove(x) if os.path.isfile(x) else None for x in FileList]
 
     # read mask, list with unique contrasts/paradigms for HCP, list of subject ID's
     maskfile = os.path.join(FILEDIR,'HCP_mask.nii.gz')
@@ -308,16 +324,17 @@ for c in np.arange(startloop,endloop):
         power_true.append(TPR)
         shutil.rmtree(FINALDIR)
 
+
     toCSV = power_predicted
     keys = toCSV[0].keys()
-    with open(os.path.join(OUTDIR,'powpre_HCP_'+str(SEED)+'_contrast_'+str(c)+'.csv'),'wb') as output_file:
+    with open(PredictionFile,'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)
 
     toCSV = power_true
     keys = toCSV[0].keys()
-    with open(os.path.join(OUTDIR,'powtru_HCP_'+str(SEED)+'_contrast_'+str(c)+'.csv'),'wb') as output_file:
+    with open(TrueFile,'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)
