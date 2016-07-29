@@ -52,8 +52,8 @@ do
     do
       echo ${starts[start]}
       echo ${ends[start]}
-    echo /usr/bin/time -v python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} &
-    sleep 2m
+      /usr/bin/time -v python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} &
+      sleep 2m
 
     done
 
