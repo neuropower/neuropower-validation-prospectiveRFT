@@ -3,6 +3,7 @@ import os
 import sys
 import pandas as pd
 import numpy as np
+import copy
 
 PILOT = int(sys.argv[1])
 FINAL = int(sys.argv[2])
@@ -14,6 +15,8 @@ MODEL = sys.argv[7]
 OUTDIR = os.environ.get('OUTDIR')
 TABDIR = os.environ.get('TABDIR')
 
+poweraim = 0.80
+
 estimation_out = os.path.join(TABDIR,"estimation_"+MODALITY+'_'+ADAPTIVE+'_'+EXC+'_'+MODEL+'.csv')
 prediction_out = os.path.join(TABDIR,"prediction_"+MODALITY+'_'+ADAPTIVE+'_'+EXC+'_'+MODEL+'.csv')
 true_out = os.path.join(TABDIR,"true_"+MODALITY+'_'+ADAPTIVE+'_'+EXC+'_'+MODEL+'.csv')
@@ -21,6 +24,7 @@ conditional_out = os.path.join(TABDIR,"conditional_"+MODALITY+'_'+ADAPTIVE+'_'+E
 
 simw = [2,4,6,8]*4
 simef = np.repeat(['half','one','onehalf','two'],4)
+cons = 47 if MODALITY=="HCP" else 16
 
 estimation_all = []
 prediction_all = []
@@ -28,6 +32,7 @@ true_all = []
 conditional_all = []
 
 for p in range(SIMS):
+
     print(p)
 
     # read file with estimation results
@@ -36,12 +41,15 @@ for p in range(SIMS):
         continue
     estimation = pd.read_csv(estimation_file)
     estimation['sim']=p+1
-    estimation['condition']=[c+1 for c in range(len(estimation))]
 
-    for c in range(16):
+    for c in range(cons):
 
         # read file with prediction of power
-        prediction_file = os.path.join(OUTDIR,"powpre_"+MODALITY+"_"+str(p+1)+"_w_"+str(simw[c])+"_e_"+str(simef[c])+".csv")
+        if MODALITY=="SIM":
+            post = "_w_"+str(simw[c])+"_e_"+str(simef[c])
+        else:
+            post = "_contrast_"+str(c)
+        prediction_file = os.path.join(OUTDIR,"powpre_"+MODALITY+"_"+str(p+1)+str(post)+".csv")
         if not os.path.isfile(prediction_file):
             continue
         prediction = pd.read_csv(prediction_file)
@@ -49,12 +57,12 @@ for p in range(SIMS):
                 prediction['BH']='nan'
         prediction['subjects']=range(PILOT,FINAL)
 
-        # conditional: when is it > 0.8
+        # conditional: when is it > poweraim
         conditional = {}
-        conditional["BFp"] = np.min(prediction.loc[prediction.BF>0.8].subjects)
-        conditional["RFp"] = np.min(prediction.loc[prediction.RFT>0.8].subjects)
-        conditional["UNp"] = np.min(prediction.loc[prediction.UN>0.8].subjects)
-        conditional["BHp"] = np.min(prediction.loc[prediction.BH>0.8].subjects)
+        conditional["BFp"] = np.min(prediction.loc[prediction.BF>poweraim].subjects)
+        conditional["RFp"] = np.min(prediction.loc[prediction.RFT>poweraim].subjects)
+        conditional["UNp"] = np.min(prediction.loc[prediction.UN>poweraim].subjects)
+        conditional["BHp"] = np.min(prediction.loc[prediction.BH>poweraim].subjects)
 
         # from wide to long
         prediction = pd.melt(prediction,id_vars=['subjects'],value_vars=['BF','UN','BH','RFT'])
@@ -63,23 +71,54 @@ for p in range(SIMS):
         prediction['simulation'] = p+1
         prediction['condition'] = c+1
 
-        true_file = os.path.join(OUTDIR,"powtru_"+MODALITY+"_"+str(p+1)+"_w_"+str(simw[c])+"_e_"+str(simef[c])+".csv")
+        true_file = os.path.join(OUTDIR,"powtru_"+MODALITY+"_"+str(p+1)+str(post)+".csv")
         if not os.path.isfile(true_file):
             continue
         true = pd.read_csv(true_file)
-
-        # read true file
-        true["BH"] = true["BH_TP"]/(true["BH_TP"]+true["BH_FN"])
-        true["BF"] = true["BF_TP"]/(true["BF_TP"]+true["BF_FN"])
-        true["RF"] = true["RFT_TP"]/(true["RFT_TP"]+true["RFT_FN"])
-        true["UN"] = true["UN_TP"]/(true["UN_TP"]+true["UN_FN"])
+        cols = true.columns
+        cols = [x if not x == "RFT" else "RF" for x in cols]
+        true.columns = cols
         true['subjects']=range(PILOT,FINAL)
 
-        # conditional: when is it > 0.8
-        conditional["BFt"] = np.min(true.loc[true.BF>0.8].subjects)
-        conditional["RFt"] = np.min(true.loc[true.RF>0.8].subjects)
-        conditional["UNt"] = np.min(true.loc[true.UN>0.8].subjects)
-        conditional["BHt"] = np.min(true.loc[true.BH>0.8].subjects)
+        # for simulated data: check FPR measures
+        if MODALITY == 'SIM':
+            true_FWE = copy.deepcopy(true)
+            true_FPR = copy.deepcopy(true)
+            true_FDR = copy.deepcopy(true)
+
+            # read true file
+            true["BH"] = true["BH_TP"]/(true["BH_TP"]+true["BH_FN"])
+            true["BF"] = true["BF_TP"]/(true["BF_TP"]+true["BF_FN"])
+            true["RF"] = true["RFT_TP"]/(true["RFT_TP"]+true["RFT_FN"])
+            true["UN"] = true["UN_TP"]/(true["UN_TP"]+true["UN_FN"])
+            true['subjects']=range(PILOT,FINAL)
+
+            # true for FPR error rates
+            true_FPR["BH"] = true_FPR["BH_FP"]/(true_FPR["BH_FP"]+true_FPR["BH_TN"])
+            true_FPR["BF"] = true_FPR["BF_FP"]/(true_FPR["BF_FP"]+true_FPR["BF_TN"])
+            true_FPR["RF"] = true_FPR["RFT_FP"]/(true_FPR["RFT_FP"]+true_FPR["RFT_TN"])
+            true_FPR["UN"] = true_FPR["UN_FP"]/(true_FPR["UN_FP"]+true_FPR["UN_TN"])
+            true_FPR['subjects']=range(PILOT,FINAL)
+
+            # true for FDR error rates
+            true_FDR["BH"] = true_FDR["BH_FP"]/(true_FDR["BH_TP"]+true_FDR["BH_FP"])
+            true_FDR["BF"] = true_FDR["BF_FP"]/(true_FDR["BF_TP"]+true_FDR["BF_FP"])
+            true_FDR["RF"] = true_FDR["RFT_FP"]/(true_FDR["RFT_TP"]+true_FDR["RFT_FP"])
+            true_FDR["UN"] = true_FDR["UN_FP"]/(true_FDR["UN_TP"]+true_FDR["UN_FP"])
+            true_FDR['subjects']=range(PILOT,FINAL)
+
+            # true for FWE error rates
+            true_FWE["BH"] = [1. if x>0 else 0. for x in true_FWE['BH_FP']]
+            true_FWE["BF"] = [1. if x>0 else 0. for x in true_FWE['BF_FP']]
+            true_FWE["RF"] = [1. if x>0 else 0. for x in true_FWE['RFT_FP']]
+            true_FWE["UN"] = [1. if x>0 else 0. for x in true_FWE['UN_FP']]
+            true_FWE['subjects']=range(PILOT,FINAL)
+
+        # conditional: when is it > poweraim
+        conditional["BFt"] = np.min(true.loc[true.BF>poweraim].subjects)
+        conditional["RFt"] = np.min(true.loc[true.RF>poweraim].subjects)
+        conditional["UNt"] = np.min(true.loc[true.UN>poweraim].subjects)
+        conditional["BHt"] = np.min(true.loc[true.BH>poweraim].subjects)
 
         BFi = true.loc[true.subjects==conditional['BFp']].BF
         UNi = true.loc[true.subjects==conditional['UNp']].UN
@@ -110,6 +149,12 @@ for p in range(SIMS):
         conditional_pd.columns = ['mcp','predicted','power','true']
         conditional_pd['simulation']=p+1
         conditional_pd['condition']=c+1
+
+        # for simulated data: check FPR measures
+        if MODALITY == 'SIM':
+            conditional_pd['FWE']=[min(true_FWE[x][true_FWE['subjects']==conditional[x+"p"]]) if conditional[x+"p"]>0 else 'nan' for x in ['BF','BH','RF','UN']]
+            conditional_pd['FDR']=[min(true_FDR[x][true_FDR['subjects']==conditional[x+"p"]]) if conditional[x+"p"]>0 else 'nan' for x in ['BF','BH','RF','UN']]
+            conditional_pd['FPR']=[min(true_FPR[x][true_FPR['subjects']==conditional[x+"p"]]) if conditional[x+"p"]>0 else 'nan' for x in ['BF','BH','RF','UN']]
 
         prediction_all.append(prediction)
         true_all.append(true)
