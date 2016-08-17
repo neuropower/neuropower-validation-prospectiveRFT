@@ -27,15 +27,13 @@ ADAPTIVE = sys.argv[5]
 MODEL = sys.argv[6]
 startloop = int(sys.argv[7])
 endloop = int(sys.argv[8])
+TMPDIR = sys.argv[9]
 
 FILEDIR = os.environ.get('FILEDIR')
 HCPDIR = os.environ.get('HCPDIR')
-TMPDIR = os.environ.get('TMPDIR')
 OUTDIR = os.environ.get('OUTDIR')
 
-TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
-os.mkdir(TEMPDIR)
-os.chdir(TEMPDIR)
+TEMPDIR = TMPDIR
 
 # parameters
 all_sub = 180
@@ -46,19 +44,19 @@ for c in np.arange(startloop,endloop):
     resfile = os.path.join(OUTDIR,"estimation_HCP_"+str(SEED)+"_"+str(startloop)+"-"+str(endloop)+".csv")
     PredictionFile = os.path.join(OUTDIR,'powpre_HCP_'+str(SEED)+'_contrast_'+str(c)+'.csv')
     TrueFile = os.path.join(OUTDIR,'powtru_HCP_'+str(SEED)+'_contrast_'+str(c)+'.csv')
-    FileList = [resfile,PredictionFile,TrueFile]
-
-    # Check if results files exist:
-        # if sample is done => continue
-        # if sample half done => remove files and restart
-        # if not done => pass
-    exist = [os.path.isfile(x) for x in FileList]
-    if np.sum(exist) == 3:
-        continue
-    elif np.sum(exist) == 0:
-        pass
-    else:
-        [os.remove(x) if os.path.isfile(x) else None for x in FileList]
+    # FileList = [resfile,PredictionFile,TrueFile]
+    #
+    # # Check if results files exist:
+    #     # if sample is done => continue
+    #     # if sample half done => remove files and restart
+    #     # if not done => pass
+    # exist = [os.path.isfile(x) for x in FileList]
+    # if np.sum(exist) == 3:
+    #     continue
+    # elif np.sum(exist) == 0:
+    #     pass
+    # else:
+    #     [os.remove(x) if os.path.isfile(x) else None for x in FileList]
 
     # read mask, list with unique contrasts/paradigms for HCP, list of subject ID's
     maskfile = os.path.join(FILEDIR,'HCP_mask.nii.gz')
@@ -86,7 +84,7 @@ for c in np.arange(startloop,endloop):
     ################################
 
     TRUEDIR = os.path.join(TEMPDIR,"analysis_true_"+str(SEED)+"/")
-    os.mkdir(TRUEDIR)
+    os.popen("mkdir "+str(TRUEDIR))
     os.chdir(TRUEDIR)
 
     true_cope = []
@@ -113,7 +111,7 @@ for c in np.arange(startloop,endloop):
     #################################
 
     PILOTDIR = os.path.join(TEMPDIR,"analysis_pilot_"+str(SEED)+"/")
-    os.mkdir(PILOTDIR)
+    os.popen("mkdir "+str(PILOTDIR))
     os.chdir(PILOTDIR)
 
     pilot_cope = []
@@ -276,7 +274,7 @@ for c in np.arange(startloop,endloop):
     for s in range(PILOT,FINAL):
         #analyze data
         FINALDIR = os.path.join(TEMPDIR,"analysis_final_"+str(SEED)+"/")
-        os.mkdir(FINALDIR)
+        os.popen("mkdir "+str(FINALDIR))
         os.chdir(FINALDIR)
         final_cope = []
         for sub in final_subs[range(s)]:

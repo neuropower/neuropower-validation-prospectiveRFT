@@ -19,6 +19,8 @@ import model
 import uuid
 from palettable.colorbrewer.qualitative import Paired_12,Set1_9
 import matplotlib.pyplot as plt
+import pandas as pd
+import glob
 
 EXC = float(sys.argv[1])
 PILOT = int(sys.argv[2])
@@ -34,20 +36,21 @@ RESDIR = os.environ.get('OUTDIR')
 TMPDIR = os.environ.get('TMPDIR')
 TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
 
-for c in np.arange(startloop,endloop):
-    resfile = os.path.join(RESDIR,"estimation_sim_"+str(SEED)+"_"+str(startloop)+"-"+str(endloop)+".csv")
+# conditions
+effectsizes = np.repeat([0.5,1,1.5,2],4)
+widths = [2,4,6,8]*4
+es_names = np.repeat(["half","one","onehalf","two"],4)
+wd_names = [2,4,6,8]*4
 
-    os.mkdir(TEMPDIR)
+resfile = os.path.join(RESDIR,"estimation_SIM_"+str(SEED)+".csv")
+
+for c in np.arange(startloop,endloop):
+    os.popen("mkdir "+str(TEMPDIR))
     os.chdir(TEMPDIR)
 
     #####################
     # simulate all data #
     #####################
-    # conditions
-    effectsizes = np.repeat([0.5,1,1.5,2],4)
-    widths = [2,4,6,8]*4
-    es_names = np.repeat(["half","one","onehalf","two"],4)
-    wd_names = [2,4,6,8]*4
 
     #parameters
     smooth_FWHM = 2
@@ -288,14 +291,14 @@ for c in np.arange(startloop,endloop):
     # write away data
     toCSV = power_predicted
     keys = toCSV[0].keys()
-    with open(os.path.join(RESDIR,'powpre_sim_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
+    with open(os.path.join(RESDIR,'powpre_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)
 
     toCSV = power_true
     keys = toCSV[0].keys()
-    with open(os.path.join(RESDIR,'powtru_sim_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
+    with open(os.path.join(RESDIR,'powtru_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(toCSV)

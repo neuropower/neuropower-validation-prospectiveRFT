@@ -24,8 +24,8 @@ source $FSLDIR/etc/fslconf/fsl.sh
 export FSLOUTPUTTYPE='NIFTI_GZ'
 
 # Parameters for analysis type
-PILOT=15
-FINAL=65
+PILOT=10
+FINAL=60
 EXC="2.3"
 MODEL="RFT"
 ADAPTIVE="predictive"
@@ -48,11 +48,13 @@ do
   starts=(0 10 20 30 40)
   ends=(10 20 30 40 47)
 
-    for start in {0..5};
+    for start in {0..4};
     do
       echo ${starts[start]}
       echo ${ends[start]}
-      /usr/bin/time -v python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} &
+      TEMPORARY=$(echo $TMPDIR\tempdir\_$SEED\_$start)
+      mkdir $TEMPORARY
+      /usr/bin/time -v python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} $TEMPORARY &
       sleep 2m
 
     done

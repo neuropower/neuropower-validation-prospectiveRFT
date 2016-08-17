@@ -25,22 +25,23 @@ export PATH=$PATH:$FSLDIR
 source $FSLDIR/etc/fslconf/fsl.sh
 export FSLOUTPUTTYPE='NIFTI_GZ'
 
-PILOT=15
+PILOT=10
 FINAL=40
 EXC="2.3"
 MODEL="RFT"
 BATCH=$i
 
 simsperbatch=25
+#indices=($(seq 2 226))
+#indices=("${indices[@]}" $(seq 251 275))
+#echo ${#indices[@]}
 
 for k in $(seq 1 $simsperbatch);
 do
-  SEED=$(((i-1)*$simsperbatch+k))
+  id=$(((i-1)*$simsperbatch+k))
+  SEED=$id
+  #SEED=${indices[$id]}
 
-#ADAPTIVE="adaptive"
-#export OUTDIR=$(echo $RESDIR\SIM_$ADAPTIVE\_$PILOT\_$EXC\_$MODEL)
-#if [ ! -d "$OUTDIR" ]; then mkdir $OUTDIR; fi
-#python $SCRIPTDIR/SIM.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} &
 ADAPTIVE="predictive"
 export OUTDIR=$(echo $RESDIR\SIM_$ADAPTIVE\_$PILOT\_$EXC\_$MODEL)
 if [ ! -d "$OUTDIR" ]; then mkdir $OUTDIR; fi
