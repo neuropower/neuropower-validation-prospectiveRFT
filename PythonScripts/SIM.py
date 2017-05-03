@@ -41,9 +41,9 @@ PEAKDIR = os.environ.get('PEAKDIR')
 TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
 
 # conditions
-effectsizes = np.repeat([0.5,0.8,1,1.2],4)
+effectsizes = np.repeat([0.5,1,1.5,2],4)
 widths = [2,4,6,8]*4
-es_names = np.repeat(["050","080","100","120"],4)
+es_names = np.repeat(["050","100","150","200"],4)
 wd_names = [2,4,6,8]*4
 
 resfile = os.path.join(RESDIR,"estimation_SIM_"+str(SEED)+".csv")
