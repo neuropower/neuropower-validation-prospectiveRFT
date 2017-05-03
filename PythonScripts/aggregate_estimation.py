@@ -5,13 +5,13 @@ import pandas as pd
 import numpy as np
 import copy
 
-PILOT = int(sys.argv[1])
-FINAL = int(sys.argv[2])
-SIMS = int(sys.argv[3])
-MODALITY = sys.argv[4]
-ADAPTIVE = sys.argv[5]
-EXC = sys.argv[6]
-MODEL = sys.argv[7]
+PILOT = int(os.environ.get('PILOT'))
+FINAL = int(os.environ.get('FINAL'))
+SIMS = int(os.environ.get('SIMS'))
+MODALITY = os.environ.get('MODALITY')
+ADAPTIVE = os.environ.get('ADAPTIVE')
+EXC = os.environ.get('EXC')
+MODEL = os.environ.get('MODEL')
 OUTDIR = os.environ.get('OUTDIR')
 TABDIR = os.environ.get('TABDIR')
 
@@ -23,8 +23,8 @@ true_out = os.path.join(TABDIR,"true_"+MODALITY+'_'+ADAPTIVE+'_'+EXC+'_'+MODEL+'
 conditional_out = os.path.join(TABDIR,"conditional_"+MODALITY+'_'+ADAPTIVE+'_'+EXC+'_'+MODEL+'.csv')
 
 simw = [2,4,6,8]*4
-simef = np.repeat(['half','one','onehalf','two'],4)
 cons = 47 if MODALITY=="HCP" else 16
+simef = np.repeat(["050","100","150","200"],4)
 
 estimation_all = []
 prediction_all = []

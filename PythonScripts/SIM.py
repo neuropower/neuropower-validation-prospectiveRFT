@@ -2,7 +2,7 @@
 # preamble #
 ############
 
-from __future__ import division
+from __future__ import division,print_function
 import os
 import sys
 import numpy as np
@@ -12,40 +12,46 @@ import nibabel as nib
 import shutil
 import csv
 import sys
-from neuropower import BUM, neuropowermodels, cluster
 sys.path.append(os.path.join(os.environ.get('HOMEDIR'),"Functions/"))
+from neuropower_local import utils,poweranalysis,neuropowermodels,effectsize
+from neuropower_local.utils import cluster,peakpvalues
 import simul_multisubject_fmri_dataset
 import model
 import uuid
+from scipy import integrate
 from palettable.colorbrewer.qualitative import Paired_12,Set1_9
 import matplotlib.pyplot as plt
 import pandas as pd
 import glob
 
-EXC = float(sys.argv[1])
-PILOT = int(sys.argv[2])
-FINAL = int(sys.argv[3])
-SEED = int(sys.argv[4])
-ADAPTIVE = sys.argv[5]
-MODEL = sys.argv[6]
+EXC = float(os.environ.get("EXC"))
+PILOT = int(os.environ.get("PILOT"))
+FINAL = int(os.environ.get("FINAL"))
+SEED = int(os.environ.get("SEED"))
+ADAPTIVE = os.environ.get("ADAPTIVE")
+MODEL = os.environ.get("MODEL")
 startloop = 0
 endloop = 16
 
 SIMFILEDIR = os.environ.get('SIMFILEDIR')
 RESDIR = os.environ.get('OUTDIR')
 TMPDIR = os.environ.get('TMPDIR')
+PEAKDIR = os.environ.get('PEAKDIR')
+
 TEMPDIR = os.path.join(TMPDIR,str(uuid.uuid4()))
 
 # conditions
-effectsizes = np.repeat([0.5,1,1.5,2],4)
+effectsizes = np.repeat([0.5,0.8,1,1.2],4)
 widths = [2,4,6,8]*4
-es_names = np.repeat(["half","one","onehalf","two"],4)
+es_names = np.repeat(["050","080","100","120"],4)
 wd_names = [2,4,6,8]*4
 
 resfile = os.path.join(RESDIR,"estimation_SIM_"+str(SEED)+".csv")
 
 for c in np.arange(startloop,endloop):
+#c=10
     os.popen("mkdir "+str(TEMPDIR))
+
     os.chdir(TEMPDIR)
 
     #####################
@@ -53,7 +59,7 @@ for c in np.arange(startloop,endloop):
     #####################
 
     #parameters
-    smooth_FWHM = 2
+    smooth_FWHM = 3
     FWHM = [smooth_FWHM,smooth_FWHM,smooth_FWHM]
     smooth_sigma = smooth_FWHM/(2*math.sqrt(2*math.log(2)))
     mask = nib.load(os.path.join(SIMFILEDIR,"SIM_mask.nii"))
@@ -100,45 +106,55 @@ for c in np.arange(startloop,endloop):
     SPM = nib.load("stats/zstat1.nii.gz").get_data()
     MASK = nib.load(os.path.join(SIMFILEDIR,'SIM_mask.nii')).get_data()
     SPM = SPM[::-1,:,:]
-    if MODEL == "RFT":
-        peaks = cluster.PeakTable(SPM,EXC,MASK)
-    elif MODEL == "CS":
-        peaks = cluster.PeakTable(SPM,-100,MASK)
 
     ###############################################################
     # estimate and compute model and estimate power on pilot data #
     ###############################################################
 
-    # compute P-values
-    if MODEL == "RFT":
-        pvalues = np.exp(-EXC*(np.array(peaks.peak)-EXC))
-        pvalues = [max(10**(-6),t) for t in pvalues]
-    elif MODEL == "CS":
-        pvalues = 1-np.asarray(neuropowermodels.nulCDF(peaks.peak,method="CS"))
-    peaks['pval'] = pvalues
+    power = poweranalysis.power(spm=SPM,mask=MASK,exc=EXC,FWHM=smooth_FWHM,voxsize=1,alpha=0.05,samplesize=PILOT)
+    power.estimate_model()
 
-    # estimate model
-    bum = BUM.EstimatePi1(peaks['pval'].tolist(),starts=10)
-    est_exp_eff="nan"
-    est_sd="nan"
-    if bum['pi1'] == 0:
-        est_eff = 'nan'
-    else:
-        if MODEL == "RFT":
-            modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],exc=EXC,starts=20,method="RFT")
-            est_eff = modelfit['mu']
-            est_sd = modelfit['sigma']
-            tau = neuropowermodels.TruncTau(est_eff,est_sd,EXC)
-            est_exp_eff = est_eff + tau*est_sd
-            mu = modelfit['mu']
-        elif MODEL == "CS":
-            modelfit = neuropowermodels.modelfit(peaks.peak,bum['pi1'],starts=5,method="CS")
-            est_sd = 'nan'
-            xn = np.arange(-10,30,0.01)
-            alt = np.asarray(neuropowermodels.altPDF(xn,mu=modelfit['mu'],method="CS"))
-            est_eff = xn[alt==np.max(alt)][0]
-            est_exp_eff = 'nan'
-            mu = modelfit['mu']
+    ##################
+    #nib.load('lala')
+    # FigureCanvas
+    # twocol = Paired_12.mpl_colors
+    # xn = np.arange(-10,30,0.01)
+    # nul = [1-power.pi1]*np.asarray(neuropowermodels.nulPDF(xn,exc=EXC))
+    # alt = power.pi1*np.asarray(neuropowermodels.altPDF(xn,mu=power.mu,sigma=power.sigma,exc=EXC))
+    # mix = neuropowermodels.mixPDF(xn,pi1=power.pi1,mu=float(power.mu),sigma=power.sigma,exc=EXC)
+    # xn_p = np.arange(0,1,0.01)
+    # alt_p = float(power.pi1)*scipy.stats.beta.pdf(xn_p, float(power.a), 1)+1-float(power.pi1)
+    # null_p = [1-power.pi1]*len(xn_p)
+    # fig,axs=plt.subplots(1,2,figsize=(14,5))
+    # axs[0].hist(power.peaktable.pvals,lw=0,normed=True,facecolor=twocol[0],bins=np.arange(0,1.1,0.1),label="observed distribution")
+    # axs[0].set_ylim([0,3])
+    # axs[0].plot(xn_p,null_p,color=twocol[3],lw=2,label="null distribution")
+    # axs[0].plot(xn_p,alt_p,color=twocol[5],lw=2,label="alternative distribution")
+    # axs[0].legend(loc="upper right",frameon=False)
+    # axs[0].set_title("Distribution of "+str(len(power.peaktable))+" peak p-values \n $\pi_1$ = "+str(round(float(power.pi1),2)))
+    # axs[0].set_xlabel("Peak p-values")
+    # axs[0].set_ylabel("Density")
+    # axs[1].hist(power.peaktable.peak,lw=0,facecolor=twocol[0],normed=True,bins=np.arange(min(power.peaktable.peak),30,0.3),label="observed distribution")
+    # axs[1].set_xlim([np.min(power.peaktable.peak),np.max(power.peaktable.peak)])
+    # axs[1].set_ylim([0,1])
+    # axs[1].plot(xn,nul,color=twocol[3],lw=2,label="null distribution")
+    # axs[1].plot(xn,alt,color=twocol[5],lw=2, label="alternative distribution")
+    # axs[1].plot(xn,mix,color=twocol[1],lw=2,label="total distribution")
+    #
+    # axs[1].set_xlabel("Peak heights (z-values)")
+    # axs[1].set_ylabel("Density")
+    # axs[1].legend(loc="upper right",frameon=False)
+    ##################
+
+    power.estimate_model()
+    peaks = power.peaktable
+
+    est_eff = power.mu
+    est_sd = power.sigma
+    pi1e = power.pi1
+    tau = neuropowermodels.TruncTau(est_eff,est_sd,EXC)
+    est_exp_eff = est_eff + tau*est_sd
+
 
     # compute true parameters
     truth = []
@@ -154,63 +170,34 @@ for c in np.arange(startloop,endloop):
     true_sd = np.std(peaks.peak[true_indices])
     true_pi1 = np.mean(truth)
 
-    # FigureCanvas
-    # twocol = Paired_12.mpl_colors
-    # xn = np.arange(-10,30,0.01)
-    # nul = [1-bum['pi1']]*np.asarray(neuropowermodels.nulPDF(xn,method="CS"))
-    # alt = bum['pi1']*np.asarray(neuropowermodels.altPDF(xn,mu=modelfit['mu'],method="CS"))
-    # mix = neuropowermodels.mixPDF(xn,pi1=bum['pi1'],mu=float(modelfit['mu']),method="CS")
-    # xn_p = np.arange(0,1,0.01)
-    # alt_p = float(bum['pi1'])*scipy.stats.beta.pdf(xn_p, float(bum['a']), 1)+1-float(bum['pi1'])
-    # null_p = [1-bum['pi1']]*len(xn_p)
-    # fig,axs=plt.subplots(1,2,figsize=(14,5))
-    # axs[0].hist(peaks.pval,lw=0,normed=True,facecolor=twocol[0],bins=np.arange(0,1.1,0.1),label="observed distribution")
-    # axs[0].set_ylim([0,3])
-    # axs[0].plot(xn_p,null_p,color=twocol[3],lw=2,label="null distribution")
-    # axs[0].plot(xn_p,alt_p,color=twocol[5],lw=2,label="alternative distribution")
-    # axs[0].legend(loc="upper right",frameon=False)
-    # axs[0].set_title("Distribution of "+str(len(peaks))+" peak p-values \n $\pi_1$ = "+str(round(float(bum['pi1']),2)))
-    # axs[0].set_xlabel("Peak p-values")
-    # axs[0].set_ylabel("Density")
-    # axs[1].hist(peaks.peak,lw=0,facecolor=twocol[0],normed=True,bins=np.arange(min(peaks.peak),30,0.3),label="observed distribution")
-    # axs[1].set_xlim([np.min(peaks.peak),np.max(peaks.peak)])
-    # axs[1].set_ylim([0,1])
-    # axs[1].plot(xn,nul,color=twocol[3],lw=2,label="null distribution")
-    # axs[1].plot(xn,alt,color=twocol[5],lw=2, label="alternative distribution")
-    # axs[1].plot(xn,mix,color=twocol[1],lw=2,label="total distribution")
+    # subs = PILOT
+    # actfile = os.path.join(PEAKDIR,'peaks_SIM_active_'+str(c)+'_'+str(subs)+'.csv')
+    # nonactfile = os.path.join(PEAKDIR,'peaks_SIM_nonactive_'+str(c)+'_'+str(subs)+'.csv')
+    # actpeaks = peaks.peak[peaks.active==0]
+    # nonactpeaks = peaks.peak[peaks.active==1]
+    # with open(actfile, 'a') as f:
+    #     actpeaks.to_csv(f,header=False)
+    # with open(nonactfile, 'a') as f:
+    #     nonactpeaks.to_csv(f,header=False)
     #
-    # axs[1].set_xlabel("Peak heights (z-values)")
-    # axs[1].set_ylabel("Density")
-    # axs[1].legend(loc="upper right",frameon=False)
 
     # write away estimation results with true values
-    estimation = [effectsize, str(wd_names[c]), bum['pi1'],true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,bum['a']]
+    estimation = [effectsize, str(wd_names[c]), pi1e,true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,'a','c']
     fd = open(resfile,"a")
     wr = csv.writer(fd,quoting=csv.QUOTE_NONE)
     if c == 0:
-        estnames = ['es','activation','pi1e','pi1t','ese','est','esexp','sde','sdt','bumpar']
+        estnames = ['es','activation','pi1e','pi1t','ese','est','esexp','sde','sdt','bumpar','cohen']
         wr.writerow(estnames)
     wr.writerow(estimation)
     fd.close()
 
-    if bum['pi1'] == 0:
+    if pi1e == 0:
         shutil.rmtree(TEMPDIR)
-        continue
+        #continue
 
     # predict power
-    thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[smooth_FWHM,smooth_FWHM,smooth_FWHM],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
-    effect_cohen = est_eff/np.sqrt(PILOT)
-    power_predicted = []
-    for s in range(PILOT,FINAL):
-        projected_effect = effect_cohen*np.sqrt(s)
-        if MODEL == "RFT":
-            powerpred =  {k:1-neuropowermodels.altCDF(v,projected_effect,modelfit['sigma'],exc=EXC,method="RFT") for k,v in thresholds.items() if v!='nan'}
-        elif MODEL == "CS":
-            xn = np.arange(-10,30,0.01)
-            nul = np.asarray(neuropowermodels.nulPDF(xn,method="CS"))
-            projected_effect = projected_effect-xn[nul==np.max(nul)][0]
-            powerpred =  {k:1-neuropowermodels.altCDF([v],projected_effect,method="CS")[0] for k,v in thresholds.items() if v!='nan'}
-        power_predicted.append(powerpred)
+
+    power_predicted = power.powercurves(ssrange=range(PILOT,FINAL),exc_future=EXC)
 
     shutil.rmtree(TEMPDIR)
 
@@ -241,15 +228,15 @@ for c in np.arange(startloop,endloop):
 
         SPM = nib.load("stats/zstat1.nii.gz").get_data()
         SPM = SPM[::-1,:,:]
-        if MODEL == "RFT":
-            peaks = cluster.PeakTable(SPM,EXC,MASK)
-            pvalues = np.exp(-EXC*(np.array(peaks.peak)-EXC))
-            pvalues = [max(10**(-6),t) for t in pvalues]
-        elif MODEL == "CS":
-            peaks = cluster.PeakTable(SPM,-100,MASK)
-            pvalues = 1-np.asarray(neuropowermodels.nulCDF(peaks.peak,method="CS"))
-        peaks['pval'] = pvalues
+        # peaks = cluster(spm = SPM, exc = EXC, mask = MASK)
+        # peaks = peakpvalues(peaks, exc = EXC)
 
+
+        power = poweranalysis.power(spm=SPM,mask=MASK,exc=EXC,FWHM=smooth_FWHM,voxsize=1,alpha=0.05,samplesize=s)
+        power.extract_peaks()
+        power.compute_thresholds()
+        thresholds = power.thres.thresholds
+        peaks = power.peaktable
 
         # compute true power for different procedures
         truth = []
@@ -259,7 +246,7 @@ for c in np.arange(startloop,endloop):
 
         truth = [0 if x == 0 else 1 for x in truth]
         peaks['active'] = truth
-        thresholds = neuropowermodels.threshold(peaks.peak,peaks.pval,FWHM=[smooth_FWHM,smooth_FWHM,smooth_FWHM],voxsize=[1,1,1],nvox=np.product(SPM.size),alpha=0.05,exc=EXC,method="RFT")
+
         res = {
             'UN_TP':'nan','BF_TP':'nan','RFT_TP':'nan','BH_TP':'nan',
             'UN_FP':'nan','BF_FP':'nan','RFT_FP':'nan','BH_FP':'nan',
@@ -288,17 +275,21 @@ for c in np.arange(startloop,endloop):
         power_true.append(res)
         shutil.rmtree(TEMPDIR)
 
-    # write away data
-    toCSV = power_predicted
-    keys = toCSV[0].keys()
-    with open(os.path.join(RESDIR,'powpre_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
-        dict_writer = csv.DictWriter(output_file, keys)
-        dict_writer.writeheader()
-        dict_writer.writerows(toCSV)
+        # subs = s
+        # actfile = os.path.join(PEAKDIR,'peaks_SIM_active_'+str(c)+'_'+str(subs)+'.csv')
+        # nonactfile = os.path.join(PEAKDIR,'peaks_SIM_nonactive_'+str(c)+'_'+str(subs)+'.csv')
+        # actpeaks = peaks.peak[peaks.active==0]
+        # nonactpeaks = peaks.peak[peaks.active==1]
+        # with open(actfile, 'a') as f:
+        #     actpeaks.to_csv(f,header=False)
+        # with open(nonactfile, 'a') as f:
+        #     nonactpeaks.to_csv(f,header=False)
+        #
+        # write away data
+        predfile = os.path.join(RESDIR,'powpre_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv')
+        predDF = pd.DataFrame(power_predicted)
+        predDF.to_csv(predfile)
 
-    toCSV = power_true
-    keys = toCSV[0].keys()
-    with open(os.path.join(RESDIR,'powtru_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv'),'wb') as output_file:
-        dict_writer = csv.DictWriter(output_file, keys)
-        dict_writer.writeheader()
-        dict_writer.writerows(toCSV)
+        trufile = os.path.join(RESDIR,'powtru_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv')
+        truDF = pd.DataFrame(power_true)
+        truDF.to_csv(trufile)

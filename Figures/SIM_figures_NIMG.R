@@ -15,12 +15,13 @@ args <- commandArgs(TRUE)
 RESDIR <- args[1]
 HOMEDIR <- args[2]
 FIGDIR <- args[3]
+u <- args[4]
+print(args)
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
 cons_list <- paste("EFFECT:",effs," - ","ACTIVATION SIZE:",acts,sep="")
 methods_n <- c("Uncorrected","Benjamini-Hochberg","Bonferroni","Random Field Theory")
-u <- 2.3
 
 ## FUNCTIONS
 
@@ -179,7 +180,7 @@ dev.off()
 #################################
 
 min <- 15
-max <- 39
+max <- 60
 size <- max-min+1
 # parameters for text
 methname <- c("UN","FDR","FWER-BF","FWER-RFT")
@@ -255,7 +256,7 @@ transp = 0.5
 koeleurtjes <- alpha(cols,transp)
 
 minmap <- 15
-maxmap <- 40
+maxmap <- 60
 subbias <- 5
 x <- c(minmap+subbias,minmap,minmap,   maxmap-subbias, maxmap,maxmap )
 y <- c(minmap   ,minmap,minmap+subbias,maxmap,    maxmap,maxmap-subbias )
