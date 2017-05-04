@@ -62,9 +62,9 @@ class power(object):
 
     def predict(self,newss,thresholds=None,exc_future=None,FDRpredict=False):
 
-        #cohen = (self.mu-self.cte)/np.sqrt(self.samplesize)
-        #mu_projected = cohen*np.sqrt(newss)+self.cte
-        mu_projected = self.mu/np.sqrt(self.samplesize)*np.sqrt(newss)
+        cohen = (self.mu-self.cte)/np.sqrt(self.samplesize)
+        mu_projected = cohen*np.sqrt(newss)+self.cte
+        #mu_projected = self.mu/np.sqrt(self.samplesize)*np.sqrt(newss)
 
         if thresholds == None:
             self.compute_thresholds()
