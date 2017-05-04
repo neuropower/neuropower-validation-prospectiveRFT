@@ -24,7 +24,7 @@ conditional_out = os.path.join(TABDIR,"conditional_"+MODALITY+'_'+ADAPTIVE+'_'+E
 
 simw = [2,4,6,8]*4
 cons = 47 if MODALITY=="HCP" else 16
-simef = np.repeat(["050","100","150","200"],4)
+simef = np.repeat(["050","080","100","120"],4)
 
 estimation_all = []
 prediction_all = []
@@ -56,6 +56,10 @@ for p in range(SIMS):
         if not 'BH' in prediction:
                 prediction['BH']='nan'
         prediction['subjects']=range(PILOT,FINAL)
+
+        # replace FDR with predicted FDR
+
+        prediction['BH'] = prediction['FDRc_predicted']
 
         # conditional: when is it > poweraim
         conditional = {}
