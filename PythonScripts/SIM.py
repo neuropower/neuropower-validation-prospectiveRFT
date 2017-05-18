@@ -49,7 +49,7 @@ wd_names = [2,4,6,8]*4
 resfile = os.path.join(RESDIR,"estimation_SIM_"+str(SEED)+".csv")
 
 for c in np.arange(startloop,endloop):
-#c=10
+
     os.popen("mkdir "+str(TEMPDIR))
 
     os.chdir(TEMPDIR)
@@ -111,42 +111,9 @@ for c in np.arange(startloop,endloop):
     # estimate and compute model and estimate power on pilot data #
     ###############################################################
 
-    power = poweranalysis.power(spm=SPM,mask=MASK,exc=EXC,FWHM=smooth_FWHM,voxsize=1,alpha=0.05,samplesize=PILOT)
-    power.estimate_model()
+    power = poweranalysis.power(spm=SPM,mask=MASK,FWHM=smooth_FWHM,voxsize=1,alpha=0.05,samplesize=PILOT)
+    power.estimate_model(exc=EXC)
 
-    ##################
-    #nib.load('lala')
-    # FigureCanvas
-    # twocol = Paired_12.mpl_colors
-    # xn = np.arange(-10,30,0.01)
-    # nul = [1-power.pi1]*np.asarray(neuropowermodels.nulPDF(xn,exc=EXC))
-    # alt = power.pi1*np.asarray(neuropowermodels.altPDF(xn,mu=power.mu,sigma=power.sigma,exc=EXC))
-    # mix = neuropowermodels.mixPDF(xn,pi1=power.pi1,mu=float(power.mu),sigma=power.sigma,exc=EXC)
-    # xn_p = np.arange(0,1,0.01)
-    # alt_p = float(power.pi1)*scipy.stats.beta.pdf(xn_p, float(power.a), 1)+1-float(power.pi1)
-    # null_p = [1-power.pi1]*len(xn_p)
-    # fig,axs=plt.subplots(1,2,figsize=(14,5))
-    # axs[0].hist(power.peaktable.pvals,lw=0,normed=True,facecolor=twocol[0],bins=np.arange(0,1.1,0.1),label="observed distribution")
-    # axs[0].set_ylim([0,3])
-    # axs[0].plot(xn_p,null_p,color=twocol[3],lw=2,label="null distribution")
-    # axs[0].plot(xn_p,alt_p,color=twocol[5],lw=2,label="alternative distribution")
-    # axs[0].legend(loc="upper right",frameon=False)
-    # axs[0].set_title("Distribution of "+str(len(power.peaktable))+" peak p-values \n $\pi_1$ = "+str(round(float(power.pi1),2)))
-    # axs[0].set_xlabel("Peak p-values")
-    # axs[0].set_ylabel("Density")
-    # axs[1].hist(power.peaktable.peak,lw=0,facecolor=twocol[0],normed=True,bins=np.arange(min(power.peaktable.peak),30,0.3),label="observed distribution")
-    # axs[1].set_xlim([np.min(power.peaktable.peak),np.max(power.peaktable.peak)])
-    # axs[1].set_ylim([0,1])
-    # axs[1].plot(xn,nul,color=twocol[3],lw=2,label="null distribution")
-    # axs[1].plot(xn,alt,color=twocol[5],lw=2, label="alternative distribution")
-    # axs[1].plot(xn,mix,color=twocol[1],lw=2,label="total distribution")
-    #
-    # axs[1].set_xlabel("Peak heights (z-values)")
-    # axs[1].set_ylabel("Density")
-    # axs[1].legend(loc="upper right",frameon=False)
-    ##################
-
-    power.estimate_model()
     peaks = power.peaktable
 
     est_eff = power.mu
@@ -154,7 +121,6 @@ for c in np.arange(startloop,endloop):
     pi1e = power.pi1
     tau = neuropowermodels.TruncTau(est_eff,est_sd,EXC)
     est_exp_eff = est_eff + tau*est_sd
-
 
     # compute true parameters
     truth = []
@@ -169,17 +135,6 @@ for c in np.arange(startloop,endloop):
     true_effectsize = np.mean(peaks.peak[true_indices])
     true_sd = np.std(peaks.peak[true_indices])
     true_pi1 = np.mean(truth)
-
-    # subs = PILOT
-    # actfile = os.path.join(PEAKDIR,'peaks_SIM_active_'+str(c)+'_'+str(subs)+'.csv')
-    # nonactfile = os.path.join(PEAKDIR,'peaks_SIM_nonactive_'+str(c)+'_'+str(subs)+'.csv')
-    # actpeaks = peaks.peak[peaks.active==0]
-    # nonactpeaks = peaks.peak[peaks.active==1]
-    # with open(actfile, 'a') as f:
-    #     actpeaks.to_csv(f,header=False)
-    # with open(nonactfile, 'a') as f:
-    #     nonactpeaks.to_csv(f,header=False)
-    #
 
     # write away estimation results with true values
     estimation = [effectsize, str(wd_names[c]), pi1e,true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,'a','c']
@@ -196,8 +151,8 @@ for c in np.arange(startloop,endloop):
         #continue
 
     # predict power
-
-    power_predicted = power.powercurves(ssrange=range(PILOT,FINAL),exc_future=EXC)
+    power.compute_thresholds(EXC)
+    power_predicted = power.powercurves(ssrange=range(PILOT,FINAL))
 
     shutil.rmtree(TEMPDIR)
 
@@ -232,9 +187,9 @@ for c in np.arange(startloop,endloop):
         # peaks = peakpvalues(peaks, exc = EXC)
 
 
-        power = poweranalysis.power(spm=SPM,mask=MASK,exc=EXC,FWHM=smooth_FWHM,voxsize=1,alpha=0.05,samplesize=s)
-        power.extract_peaks()
-        power.compute_thresholds()
+        power = poweranalysis.power(spm=SPM,mask=MASK,FWHM=smooth_FWHM,voxsize=1,alpha=0.05,samplesize=s)
+        power.extract_peaks(exc=EXC)
+        power.compute_thresholds(exc=EXC)
         thresholds = power.thres.thresholds
         peaks = power.peaktable
 
@@ -286,6 +241,7 @@ for c in np.arange(startloop,endloop):
         #     nonactpeaks.to_csv(f,header=False)
         #
         # write away data
+
         predfile = os.path.join(RESDIR,'powpre_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv')
         predDF = pd.DataFrame(power_predicted)
         predDF.to_csv(predfile)
@@ -293,3 +249,36 @@ for c in np.arange(startloop,endloop):
         trufile = os.path.join(RESDIR,'powtru_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv')
         truDF = pd.DataFrame(power_true)
         truDF.to_csv(trufile)
+
+
+    ##################
+    #nib.load('lala')
+    # FigureCanvas
+    # twocol = Paired_12.mpl_colors
+    # xn = np.arange(-10,30,0.01)
+    # nul = [1-power.pi1]*np.asarray(neuropowermodels.nulPDF(xn,exc=EXC))
+    # alt = power.pi1*np.asarray(neuropowermodels.altPDF(xn,mu=power.mu,sigma=power.sigma,exc=EXC))
+    # mix = neuropowermodels.mixPDF(xn,pi1=power.pi1,mu=float(power.mu),sigma=power.sigma,exc=EXC)
+    # xn_p = np.arange(0,1,0.01)
+    # alt_p = float(power.pi1)*scipy.stats.beta.pdf(xn_p, float(power.a), 1)+1-float(power.pi1)
+    # null_p = [1-power.pi1]*len(xn_p)
+    # fig,axs=plt.subplots(1,2,figsize=(14,5))
+    # axs[0].hist(power.peaktable.pvals,lw=0,normed=True,facecolor=twocol[0],bins=np.arange(0,1.1,0.1),label="observed distribution")
+    # axs[0].set_ylim([0,3])
+    # axs[0].plot(xn_p,null_p,color=twocol[3],lw=2,label="null distribution")
+    # axs[0].plot(xn_p,alt_p,color=twocol[5],lw=2,label="alternative distribution")
+    # axs[0].legend(loc="upper right",frameon=False)
+    # axs[0].set_title("Distribution of "+str(len(power.peaktable))+" peak p-values \n $\pi_1$ = "+str(round(float(power.pi1),2)))
+    # axs[0].set_xlabel("Peak p-values")
+    # axs[0].set_ylabel("Density")
+    # axs[1].hist(power.peaktable.peak,lw=0,facecolor=twocol[0],normed=True,bins=np.arange(min(power.peaktable.peak),30,0.3),label="observed distribution")
+    # axs[1].set_xlim([np.min(power.peaktable.peak),np.max(power.peaktable.peak)])
+    # axs[1].set_ylim([0,1])
+    # axs[1].plot(xn,nul,color=twocol[3],lw=2,label="null distribution")
+    # axs[1].plot(xn,alt,color=twocol[5],lw=2, label="alternative distribution")
+    # axs[1].plot(xn,mix,color=twocol[1],lw=2,label="total distribution")
+    #
+    # axs[1].set_xlabel("Peak heights (z-values)")
+    # axs[1].set_ylabel("Density")
+    # axs[1].legend(loc="upper right",frameon=False)
+    ##################
