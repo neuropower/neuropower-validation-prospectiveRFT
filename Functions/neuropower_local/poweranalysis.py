@@ -15,70 +15,76 @@ class power(object):
     :type mask: ndarray
     '''
 
-    def __init__(self,spm,mask=None,exc=None,samplesize=None,FWHM=None,voxsize=None,alpha=None):
+    def __init__(self,spm,mask=None,samplesize=None,FWHM=None,voxsize=None,alpha=None):
 
         self.spm = spm
         self.mask = mask
         self.samplesize = samplesize
-        self.exc = exc
         self.FWHM = FWHM
         self.voxsize = voxsize
         self.alpha = alpha
         self.cte = integrate.quad(lambda x:x*peakdens3D(x,1),-np.inf,np.inf)[0]
 
-    def extract_peaks(self):
+    def extract_peaks(self,exc):
 
-        peaktable = cluster(spm = self.spm, exc = self.exc, mask = self.mask)
-        self.peaktable = peakpvalues(peaktable, exc = self.exc)
+        peaktable = cluster(spm = self.spm, exc = None, mask = self.mask)
+        self.peaktable = peakpvalues(peaktable, exc = exc)
 
         return self
 
-    def estimate_model(self,starts=10):
+    def estimate_model(self,exc,starts=10):
 
         if not hasattr(self, 'peaktable'):
-            self.extract_peaks()
+            self.extract_peaks(exc=exc)
 
-        pi1 = Pi1(pvalues = self.peaktable['pvals'])
+        peakexc = self.peaktable[self.peaktable['peak']>exc]
+
+        pi1 = Pi1(pvalues = peakexc['pvals'])
         pi1.estimate(starts=starts)
         self.pi1 = pi1.pi1
         self.lam = pi1.lam
 
-        effect = Effect(self.peaktable['peak'])
+        effect = Effect(peakexc['peak'])
         effect.pi1 = pi1.pi1
-        effect.exc = self.exc
+        effect.exc = exc
         effect.estimate()
         self.mu = effect.mu
         self.sigma = effect.sigma
 
         return self
 
-    def compute_thresholds(self):
+    def compute_thresholds(self,exc):
 
-        thres = thresholds(self.peaktable['peak'],self.peaktable['pvals'],FWHM=self.FWHM,voxsize=self.voxsize,alpha=self.alpha,nvox = np.sum(self.mask>0),exc=self.exc)
+        thres = thresholds(self.peaktable['peak'],self.peaktable['pvals'],FWHM=self.FWHM,voxsize=self.voxsize,alpha=self.alpha,nvox = np.sum(self.mask>0),exc=exc)
         thres.estimate()
         self.thres = thres
 
         return self
 
-    def predict(self,newss,thresholds=None,exc_future=None,FDRpredict=False):
+    def predict(self,newss,thresholds=None,exc=None,FDRpredict=False):
 
-        cohen = (self.mu-self.cte)/np.sqrt(self.samplesize)
-        mu_projected = cohen*np.sqrt(newss)+self.cte
-        #mu_projected = self.mu/np.sqrt(self.samplesize)*np.sqrt(newss)
+        # cohen = (self.mu-self.cte)/np.sqrt(self.samplesize)
+        # mu_projected = cohen*np.sqrt(newss)+self.cte
+        mu_projected = self.mu/np.sqrt(self.samplesize)*np.sqrt(newss)
 
         if thresholds == None:
-            self.compute_thresholds()
+            if self.thres.thresholds:
+                pass
+            elif exc == None:
+                raise ValueError('Excursion threshold needed for computing thesholds.  Set threshold or compute thresholds separately.')
+            else:
+                self.compute_thresholds(exc=EXC)
             if FDRpredict==True:
                 self.thres.predict_FDR(mu_projected,self.sigma)
             thresholds = self.thres.thresholds
         if type(thresholds==dict):
-            predicted = {k:1-altCDF(v,mu_projected,self.sigma,exc=exc_future) for (k,v) in thresholds.items() if not v == 'nan'}
+            predicted = {k:1-altCDF(v,mu_projected,self.sigma,exc=exc) for (k,v) in thresholds.items() if not v == 'nan'}
         else:
-            predicted = 1-altCDF(v,mu_projected,self.sigma,exc=self.exc_future)
+            predicted = 1-altCDF(v,mu_projected,self.sigma,exc=exc)
 
         return predicted
 
-    def powercurves(self,ssrange,thresholds=None,FDRpredict=True,exc_future=None):
+    def powercurves(self,ssrange,thresholds=None,FDRpredict=True,exc=None):
         #FDRpredict needs a thresholds-object
         if thresholds == None:
             pass
@@ -91,7 +97,7 @@ class power(object):
         powercurves = pd.DataFrame({})
 
         for ss in ssrange:
-            res = self.predict(thresholds=thresholds,newss=ss,FDRpredict=True,exc_future=exc_future)
+            res = self.predict(thresholds=thresholds,newss=ss,FDRpredict=True,exc=exc)
             res['samplesize'] = ss
             powercurves = powercurves.append(res,ignore_index=True)
 
@@ -171,7 +177,7 @@ class thresholds(object):
         'Predict FDR cutoff based on distributions'
 
         x = np.arange(self.exc,15,0.01)
-        y1 = 1-altCDF(x,mu=mu,sigma=sigma,exc=self.exc)
+        y1 = 1-altCDF(x,mu=mu,sigma=sigma,exc=None)
         y2 = 1-nulCDF(x,exc=self.exc)
         lfdr = y2/(y1+y2)
 
