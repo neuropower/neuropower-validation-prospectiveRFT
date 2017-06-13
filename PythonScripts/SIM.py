@@ -122,7 +122,8 @@ for c in np.arange(startloop,endloop):
     tau = neuropowermodels.TruncTau(est_eff,est_sd,EXC)
     est_exp_eff = est_eff + tau*est_sd
 
-    # compute true parameters
+    # compute truth
+
     truth = []
     for i in range(len(peaks)):
         peak_act = activation[int(peaks.x[i]),int(peaks.y[i]),int(peaks.z[i])]
@@ -130,25 +131,29 @@ for c in np.arange(startloop,endloop):
 
     truth = [0 if x == 0 else 1 for x in truth]
     peaks['active'] = truth
-    true_indices = [index for index,value in enumerate(truth) if value == 1]
 
-    true_effectsize = np.mean(peaks.peak[true_indices])
-    true_sd = np.std(peaks.peak[true_indices])
-    true_pi1 = np.mean(truth)
+    # model above threshold
+    peaks_supra = peaks[peaks.peak>EXC]
+    true_effectsize = np.mean(peaks_supra.peak[peaks_supra.active==1])
+    true_sd = np.std(peaks_supra.peak[peaks_supra.active==1])
+    true_pi1 = np.mean(peaks_supra.active)
+
+    # effect below threshold
+    true_effectsize_full = np.mean(peaks.peak[peaks.active==1])
 
     # write away estimation results with true values
-    estimation = [effectsize, str(wd_names[c]), pi1e,true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,'a','c']
+    estimation = [effectsize, str(wd_names[c]), pi1e,true_pi1,est_eff,true_effectsize,est_exp_eff,est_sd,true_sd,true_effectsize_full]
     fd = open(resfile,"a")
     wr = csv.writer(fd,quoting=csv.QUOTE_NONE)
     if c == 0:
-        estnames = ['es','activation','pi1e','pi1t','ese','est','esexp','sde','sdt','bumpar','cohen']
+        estnames = ['es','activation','pi1e','pi1t','ese','est','esexp','sde','sdt','true_effect_full']
         wr.writerow(estnames)
     wr.writerow(estimation)
     fd.close()
 
     if pi1e == 0:
         shutil.rmtree(TEMPDIR)
-        #continue
+        continue
 
     # predict power
     power.compute_thresholds(EXC)
@@ -183,9 +188,6 @@ for c in np.arange(startloop,endloop):
 
         SPM = nib.load("stats/zstat1.nii.gz").get_data()
         SPM = SPM[::-1,:,:]
-        # peaks = cluster(spm = SPM, exc = EXC, mask = MASK)
-        # peaks = peakpvalues(peaks, exc = EXC)
-
 
         power = poweranalysis.power(spm=SPM,mask=MASK,FWHM=smooth_FWHM,voxsize=1,alpha=0.05,samplesize=s)
         power.extract_peaks(exc=EXC)
@@ -230,18 +232,6 @@ for c in np.arange(startloop,endloop):
         power_true.append(res)
         shutil.rmtree(TEMPDIR)
 
-        # subs = s
-        # actfile = os.path.join(PEAKDIR,'peaks_SIM_active_'+str(c)+'_'+str(subs)+'.csv')
-        # nonactfile = os.path.join(PEAKDIR,'peaks_SIM_nonactive_'+str(c)+'_'+str(subs)+'.csv')
-        # actpeaks = peaks.peak[peaks.active==0]
-        # nonactpeaks = peaks.peak[peaks.active==1]
-        # with open(actfile, 'a') as f:
-        #     actpeaks.to_csv(f,header=False)
-        # with open(nonactfile, 'a') as f:
-        #     nonactpeaks.to_csv(f,header=False)
-        #
-        # write away data
-
         predfile = os.path.join(RESDIR,'powpre_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv')
         predDF = pd.DataFrame(power_predicted)
         predDF.to_csv(predfile)
@@ -249,7 +239,6 @@ for c in np.arange(startloop,endloop):
         trufile = os.path.join(RESDIR,'powtru_SIM_'+str(SEED)+'_w_'+str(wd_names[c])+'_e_'+es_names[c]+'.csv')
         truDF = pd.DataFrame(power_true)
         truDF.to_csv(trufile)
-
 
     ##################
     #nib.load('lala')
