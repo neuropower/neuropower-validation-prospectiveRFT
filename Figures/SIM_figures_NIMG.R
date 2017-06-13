@@ -16,7 +16,6 @@ RESDIR <- args[1]
 HOMEDIR <- args[2]
 FIGDIR <- args[3]
 u <- args[4]
-print(args)
 
 effs <- rep(c(0.5,1,1.5,2),each=4)
 acts <- rep(c(2,4,6,8),4)
@@ -58,10 +57,10 @@ res.nonad.mn <- ddply(res.nonad,
                       pi1t = mean(pi1t,na.rm=TRUE),
                       ese = mean(ese,na.rm=TRUE),
                       est = mean(est,na.rm=TRUE),
-                       esexp = mean(esexp,na.rm=TRUE),
+                      esexp = mean(esexp,na.rm=TRUE),
                       sde = mean(sde,na.rm=TRUE),
                       sdt = mean(sdt,na.rm=TRUE),
-                      bumpar = mean(bumpar,na.rm=TRUE)
+                      true_effect_full = mean(true_effect_full,na.rm=TRUE)
 )
 
 
@@ -154,7 +153,7 @@ plot(seq(2,6,length=10),
 abline(0,1,lwd=1,col="grey50")
 box();axis(1);axis(2)
 
-points(res.nonad$est,
+points(res.nonad$true_effect_full,
        res.nonad$ese,
        col=alpha(cols[res.nonad$condition]),
        pch=16,cex=cxp
