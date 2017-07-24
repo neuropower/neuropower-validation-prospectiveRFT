@@ -1,32 +1,28 @@
 #!/bin/bash
 
-#SBATCH -J HCP.NAD.RFT
-#SBATCH -o error/out.HCP.NAD.RFT
-#SBATCH -e error/err.HCP.NAD.RFT
-#SBATCH -t 30:00:00
-#SBATCH -N 1
-#SBATCH -n 25
-#SBATCH -p normal
+#SBATCH --output=error/POWER.%a.txt
+#SBATCH --error=error/POWER.%a.txt
+##SBATCH --qos=russpold
+##SBATCH -p russpold
+#SBATCH --time=35:00:00
 #SBATCH --mail-user=joke.durnez@gmail.com
-#SBATCH --mail-type=begin   # email me when the job starts
-#SBATCH --mail-type=end     # email me when the job finishes
+#SBATCH --mail-type=ALL   # email me when the job starts
 
 . ./config_tacc.sh
 
 # Load modules
-module load fsl/5.0.9
-module load python/2.7.11
+module use /scratch/PI/russpold/modules
+source /share/PI/russpold/software/setup_all.sh
 
 # Parameters for software
-export FSLDIR=/work/01329/poldrack/lonestar/software_lonestar5/fsl-5.0.8
 export PATH=$PATH:$FSLDIR
 source $FSLDIR/etc/fslconf/fsl.sh
 export FSLOUTPUTTYPE='NIFTI_GZ'
 
 # Parameters for analysis type
-PILOT=10
-FINAL=60
-EXC="2.3"
+PILOT=15
+FINAL=61
+EXC="2.5"
 MODEL="RFT"
 ADAPTIVE="predictive"
 
@@ -36,29 +32,15 @@ export OUTDIR=$(echo $RESDIR\HCP_$ADAPTIVE\_$PILOT\_$EXC\_$MODEL/)
 
 if [ ! -d "$OUTDIR" ]; then mkdir $OUTDIR; fi
 
-# How many jobs are there for each script
-JOBSPERSCRIPT=5
+export SEED=$SLURM_ARRAY_TASK_ID
 
 # Loop over jobs, loop over contrasts
-for job in $(seq 1 $JOBSPERSCRIPT)
-do
-  BASE=$(($i-1))
-  SEED=$(($BASE*$JOBSPERSCRIPT+$job))
+starts=(0)
+ends=(47)
 
-  starts=(0 10 20 30 40)
-  ends=(10 20 30 40 47)
+start=0
+TEMPORARY=$(echo $TMPDIR\tempdir\_$SEED\_$start)
+mkdir $TEMPORARY
+python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} $TEMPORARY
 
-    for start in {0..4};
-    do
-      echo ${starts[start]}
-      echo ${ends[start]}
-      TEMPORARY=$(echo $TMPDIR\tempdir\_$SEED\_$start)
-      mkdir $TEMPORARY
-      /usr/bin/time -v python $SCRIPTDIR/HCP.py $EXC $PILOT $FINAL $SEED $ADAPTIVE $MODEL ${starts[start]} ${ends[start]} $TEMPORARY &
-      sleep 2m
-
-    done
-
-done
-
-wait
+echo "Analysis finished"
