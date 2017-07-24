@@ -32,15 +32,13 @@ true_all = []
 conditional_all = []
 
 for p in range(SIMS):
-
-    print(p)
-
     # read file with estimation results
-    estimation_file = os.path.join(OUTDIR,"estimation_"+MODALITY+"_"+str(p+1)+".csv")
+    estimation_file = os.path.join(OUTDIR,"estimation_"+MODALITY+"_"+str(p+1)+"%s.csv")%("" if MODALITY=="SIM" else "_0-48")
     if not os.path.isfile(estimation_file):
         continue
     estimation = pd.read_csv(estimation_file)
     estimation['sim']=p+1
+    estimation = estimation.fillna(0)
 
     for c in range(cons):
 
@@ -51,11 +49,23 @@ for p in range(SIMS):
             post = "_contrast_"+str(c)
         prediction_file = os.path.join(OUTDIR,"powpre_"+MODALITY+"_"+str(p+1)+str(post)+".csv")
         if not os.path.isfile(prediction_file):
-            continue
-        prediction = pd.read_csv(prediction_file)
-        if not 'BH' in prediction:
-                prediction['BH']='nan'
-        prediction['subjects']=range(PILOT,FINAL)
+            #print("not found")
+
+            prediction = pd.DataFrame({
+                'Unnamed:0':range(0,FINAL-PILOT),
+                'BF':[0]*(FINAL-PILOT),
+                'FDRc_predicted':[0]*(FINAL-PILOT),
+                'RFT':[0]*(FINAL-PILOT),
+                'UN':[0]*(FINAL-PILOT),
+                'samplesize':range(PILOT,FINAL),
+                'subjects':range(PILOT,FINAL)
+                })
+
+        else:
+            prediction = pd.read_csv(prediction_file)
+            if not 'BH' in prediction:
+                    prediction['BH']=0
+            prediction['subjects']=range(PILOT,FINAL)
 
         # replace FDR with predicted FDR
 
@@ -77,11 +87,23 @@ for p in range(SIMS):
 
         true_file = os.path.join(OUTDIR,"powtru_"+MODALITY+"_"+str(p+1)+str(post)+".csv")
         if not os.path.isfile(true_file):
-            continue
-        true = pd.read_csv(true_file)
+            true = pd.DataFrame({
+                'Unnamed:0':range(0,FINAL-PILOT),
+                'BF':[0]*(FINAL-PILOT),
+                'BH':[0]*(FINAL-PILOT),
+                'RFT':[0]*(FINAL-PILOT),
+                'UN':[0]*(FINAL-PILOT),
+                })
+        else:
+            true = pd.read_csv(true_file)
+            if len(true)!=47:
+                print(len(true))
+                continue
+
         cols = true.columns
         cols = [x if not x == "RFT" else "RF" for x in cols]
         true.columns = cols
+        true = true.iloc[:46]
         true['subjects']=range(PILOT,FINAL)
 
         # for simulated data: check FPR measures
@@ -160,9 +182,14 @@ for p in range(SIMS):
             conditional_pd['FDR']=[min(true_FDR[x][true_FDR['subjects']==conditional[x+"p"]]) if conditional[x+"p"]>0 else 'nan' for x in ['BF','BH','RF','UN']]
             conditional_pd['FPR']=[min(true_FPR[x][true_FPR['subjects']==conditional[x+"p"]]) if conditional[x+"p"]>0 else 'nan' for x in ['BF','BH','RF','UN']]
 
-        prediction_all.append(prediction)
-        true_all.append(true)
         conditional_all.append(conditional_pd)
+
+        prediction_all.append(prediction)
+
+        # if c==14:
+        #     np.load("stop")
+
+        true_all.append(true)
 
     estimation_all.append(estimation)
 
