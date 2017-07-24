@@ -22,7 +22,7 @@ export FSLOUTPUTTYPE='NIFTI_GZ'
 # Parameters for analysis type
 PILOT=15
 FINAL=61
-EXC="2.5"
+EXC="2.0"
 MODEL="RFT"
 ADAPTIVE="predictive"
 
