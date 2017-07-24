@@ -21,37 +21,20 @@ module load R/3.2.0
 
 export PILOT=15
 export FINAL=61
-export EXC="2.3"
+export EXC="2.5"
 #export SEED=$SLURM_ARRAY_TASK_ID
 export ADAPTIVE="predictive"
 export SIMS=30
-export MODALITY='SIM'
+export MODALITY='HCP'
 export ADAPTIVE='predictive'
 export MODEL='RFT'
 
-
 export OUTDIR=$(echo $RESDIR$MODALITY\_$ADAPTIVE\_$PILOT\_$EXC\_$MODEL)
-
-
-# for i in $(seq 1 $SIMS)
-# do
-#   rm $OUTDIR/estimation_$MODALITY\_$i.csv
-# done
-#
-# for i in $(seq 1 $SIMS)
-# do
-#   echo $i
-#   prt=($(ls $OUTDIR/estimation_$MODALITY\_$i\_*.csv | sort -n -t _ -k 3))
-#   for k in "${prt[@]}"
-#   do
-#     more $k >> $OUTDIR/estimation_$MODALITY\_$i.csv
-#   done
-# done
 
 python -i $SCRIPTDIR/aggregate_estimation.py $PILOT $FINAL $SIMS $MODALITY $ADAPTIVE $EXC $MODEL
 
-#Rscript $HOMEDIR\Figures/SIM_figures_NIMG.R $TABDIR $HOMEDIR $FIGDIR $EXC
-Rscript $HOMEDIR\Figures/HCP_figures_NIMG.R $TABDIR $HOMEDIR $FIGDIR
+Rscript $HOMEDIR\Figures/SIM_figures_NIMG.R $TABDIR $HOMEDIR $FIGDIR $EXC
+Rscript $HOMEDIR\Figures/HCP_figures_NIMG.R $TABDIR $HOMEDIR $FIGDIR $EXC
 
 
 #TABDIR="/scratch/users/jdurnez/power_revision/tables/"
